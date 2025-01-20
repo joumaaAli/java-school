@@ -1,0 +1,8 @@
+ID,Name,Password,Role,BalanceDue
+t1a2b3c4-d5e6-f7g8-h9i0-1234567890ab,Alice Johnson,alicePass,Teacher,
+t2b3c4d5-e6f7-g8h9-i0j1-234567890abc,Bob Smith,bobPass,Teacher,
+t3c4d5e6-f7g8-h9i0-j1k2-34567890abcd,Charlie Brown,charliePass,Teacher,
+s1d4e5f6-g8h9-i0j1-k2l3-4567890abcde,David Lee,davidPass,Student,50.0
+s2e5f6g7-h9i0-j1k2-l3m4-567890abcdef,Eva Green,evaPass,Student,75.0
+s3f6g7h8-i0j1-k2l3-m4n5-67890abcdefg,Frank White,frankPass,Student,30.0
+s4g7h8i9-j1k2-l3m4-n5o6-7890abcdefgh,Grace Hall,gracePass,Student,60.0

@@ -1,0 +1,6 @@
+id,title,type,pathOrContent,chapterId
+mat1,Algebra Basics,video,https://example.com/algebra-basics,chap1
+mat2,Geometry Theorems,pdf,/materials/geometry-theorems.pdf,chap2
+mat3,World War II Overview,video,https://example.com/ww2-overview,chap3
+mat4,Newtonian Mechanics,video,https://example.com/newtonian-mechanics,chap4
+mat5,Introduction to Optics,pdf,/materials/introduction-optics.pdf,chap5

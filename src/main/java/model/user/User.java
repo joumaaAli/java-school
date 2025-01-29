@@ -1,6 +1,9 @@
 package model.user;
 
-public abstract class User {
+import java.io.Serializable;
+
+public abstract class User implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String name;
     private String password;
@@ -11,9 +14,17 @@ public abstract class User {
         this.password = password;
     }
 
-    public String getId() { return id; }
-    public String getName() { return name; }
-    public String getPassword() { return password; }
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getPassword() {
+        return password;
+    }
 
     public abstract String getRole();
 }

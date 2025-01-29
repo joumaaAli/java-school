@@ -1,9 +1,12 @@
 package model.subject;
 
-public class Material {
+import java.io.Serializable;
+
+public class Material implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String title;
-    private String type;
+    private String type; // e.g., video, image, pdf
     private String pathOrContent;
     private String chapterId;
 
@@ -15,6 +18,7 @@ public class Material {
         this.chapterId = chapterId;
     }
 
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -35,15 +39,15 @@ public class Material {
         return chapterId;
     }
 
-    public String toStringCSV() {
-        // For CSV writing
-        // Format: "id,title,type,pathOrContent,chapterId"
-        return id + "," + title + "," + type + "," + pathOrContent + "," + chapterId;
-    }
-
+    // toString for serialization (optional)
     @Override
     public String toString() {
-        // For display in UI components
-        return title + " (" + type + ") - " + pathOrContent;
+        return "Material{" +
+                "id='" + id + '\'' +
+                ", title='" + title + '\'' +
+                ", type='" + type + '\'' +
+                ", pathOrContent='" + pathOrContent + '\'' +
+                ", chapterId='" + chapterId + '\'' +
+                '}';
     }
 }

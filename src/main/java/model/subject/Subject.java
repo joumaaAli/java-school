@@ -1,18 +1,22 @@
 package model.subject;
 
-public class Subject {
+import java.io.Serializable;
+
+public class Subject implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String name;
-    private String domain;
-    private double cost;
+    private String type; // e.g., Core, Elective
+    private double price;
 
-    public Subject(String id, String name, String domain, double cost) {
+    public Subject(String id, String name, String type, double price) {
         this.id = id;
         this.name = name;
-        this.domain = domain;
-        this.cost = cost;
+        this.type = type;
+        this.price = price;
     }
 
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -21,22 +25,22 @@ public class Subject {
         return name;
     }
 
-    public String getDomain() {
-        return domain;
+    public String getType() {
+        return type;
     }
 
-    public double getCost() {
-        return cost;
+    public double getPrice() {
+        return price;
     }
 
+    // toString for serialization (optional)
+    @Override
     public String toString() {
-        // For CSV writing
-        // Format: "id,name,domain,cost"
-        return id + "," + name + "," + domain + "," + cost;
+        return "Subject{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                ", type='" + type + '\'' +
+                ", price=" + price +
+                '}';
     }
-
-    public String toStringForDisplay() {
-        return name + " (" + domain + ") - Cost: $" + cost;
-    }
-
 }

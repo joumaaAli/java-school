@@ -1,10 +1,11 @@
 package model.subject;
 
 import model.user.Student;
-
+import java.io.Serializable;
 import java.util.List;
 
-public class Session {
+public class Session implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String title;
     private String dateTime;
@@ -19,6 +20,7 @@ public class Session {
         this.groupId = groupId;
     }
 
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -39,27 +41,22 @@ public class Session {
         return groupId;
     }
 
-    public String toStringCSV() {
-        // For CSV writing
-        // Format: "id,title,dateTime,chapterId,groupId"
-        return id + "," + title + "," + dateTime + "," + chapterId + "," + groupId;
-    }
-
-    /**
-     * Notifies all students in the group about the new session.
-     *
-     * @param students List of students to notify.
-     */
+    // Dummy implementation of notifyStudents
     public void notifyStudents(List<Student> students) {
         for (Student s : students) {
-            // Placeholder for notification logic, e.g., send email or display message
-            System.out.println("Notifying student " + s.getName() + " about new session: " + title);
+            System.out.println("Notifying " + s.getName() + " about session: " + title);
         }
     }
 
+    // toString for serialization (optional)
     @Override
     public String toString() {
-        // For display in UI components
-        return title + " (" + dateTime + ")";
+        return "Session{" +
+                "id='" + id + '\'' +
+                ", title='" + title + '\'' +
+                ", dateTime='" + dateTime + '\'' +
+                ", chapterId='" + chapterId + '\'' +
+                ", groupId='" + groupId + '\'' +
+                '}';
     }
 }

@@ -1,35 +1,56 @@
 package model.user;
 
-public class Student extends User {
-    private double balanceDue;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import model.subject.TestResult;
 
-    public Student(String id, String name, String password, double balanceDue) {
+public class Student extends User implements Serializable {
+    private double balance;
+    private List<String> groupIds;
+    private List<TestResult> testResults; // New field
+
+    public Student(String id, String name, String password, double balance) {
         super(id, name, password);
-        this.balanceDue = balanceDue;
+        this.balance = balance;
+        this.groupIds = new ArrayList<>();
+        this.testResults = new ArrayList<>();
     }
+
+    // Getters and Setters
 
     public double getBalance() {
-        return balanceDue;
+        return balance;
     }
 
-    public void addBalance(double amount) {
-        balanceDue += amount;
+    public void setBalance(double balance) {
+        this.balance = balance;
     }
 
-    public void setBalance(double amount) {
-        balanceDue = amount;
+    public List<String> getGroupIds() {
+        return groupIds;
     }
 
-    public void pay(double amount) {
-        balanceDue -= amount;
+    public void enrollGroup(String groupId) {
+        if (!groupIds.contains(groupId)) {
+            groupIds.add(groupId);
+        }
     }
 
-    public String getRole() {
-        return "Student";
+    public void leaveGroup(String groupId) {
+        groupIds.remove(groupId);
+    }
+
+    public List<TestResult> getTestResults() {
+        return testResults;
+    }
+
+    public void addTestResult(TestResult result) {
+        testResults.add(result);
     }
 
     @Override
-    public String toString() {
-        return this.getId() + "," + this.getName() + "," + "Student" + "," + balanceDue;
+    public String getRole() {
+        return "Student";
     }
 }

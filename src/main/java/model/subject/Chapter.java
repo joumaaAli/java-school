@@ -1,47 +1,45 @@
 package model.subject;
 
-public class Chapter {
-    private String id;
-    private String subjectId;
-    private String name;
-    private String objectives;
+import java.io.Serializable;
 
-    public Chapter(String id, String subjectId, String name, String objectives) {
+public class Chapter implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private String id;
+    private String name;
+    private String subjectId;
+    private String description;
+
+    public Chapter(String id, String name, String subjectId, String description) {
         this.id = id;
-        this.subjectId = subjectId;
         this.name = name;
-        this.objectives = objectives;
+        this.subjectId = subjectId;
+        this.description = description;
     }
 
+    // Getters and Setters
     public String getId() {
         return id;
-    }
-
-    public String getSubjectId() {
-        return subjectId;
     }
 
     public String getName() {
         return name;
     }
 
-    public String getObjectives() {
-        return objectives;
+    public String getSubjectId() {
+        return subjectId;
     }
 
-    public String toStringCSV() {
-        // For CSV writing
-        // Format: "id,subjectId,name,Objectives"
-        return id + "," + subjectId + "," + name + "," + objectives;
+    public String getDescription() {
+        return description;
     }
 
-    public String toStringForDisplay() {
-        return name + " - Objectives: " + objectives;
-    }
-
+    // toString for serialization (optional)
     @Override
     public String toString() {
-        // For display in JComboBox and other UI components
-        return name;
+        return "Chapter{" +
+                ", name='" + name + '\'' +
+                ", subjectId='" + subjectId + '\'' +
+                ", description='" + description + '\'' +
+                '}';
     }
 }

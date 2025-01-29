@@ -1,9 +1,13 @@
 package model.user;
 
+import java.io.Serializable;
+
 import model.subject.*;
 import utils.IDGenerator;
 
-public class Teacher extends User {
+public class Teacher extends User implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     public Teacher(String id, String name, String password) {
         super(id, name, password);

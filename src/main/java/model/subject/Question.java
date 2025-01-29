@@ -1,11 +1,13 @@
 package model.subject;
 
-public class Question {
+import java.io.Serializable;
+
+public class Question implements Serializable {
     private String id;
     private String testId;
     private String text;
     private String[] options;
-    private int correctOption; // 0-3
+    private int correctOption; // 0-based index
 
     public Question(String id, String testId, String text, String[] options, int correctOption) {
         this.id = id;
@@ -15,12 +17,18 @@ public class Question {
         this.correctOption = correctOption;
     }
 
+    // Getters and Setters
+
     public String getId() {
         return id;
     }
 
     public String getTestId() {
         return testId;
+    }
+
+    public void setTestId(String testId) {
+        this.testId = testId;
     }
 
     public String getText() {
@@ -35,19 +43,8 @@ public class Question {
         return correctOption;
     }
 
-    public String toStringCSV() {
-        // For CSV writing
-        // Format: "id,text,option1|option2|option3|option4,correctOption"
-        return id + "," + text + "," + String.join("|", options) + "," + correctOption;
-    }
-
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(text).append("\n");
-        for (int i = 0; i < options.length; i++) {
-            sb.append((i + 1)).append(". ").append(options[i]).append("\n");
-        }
-        return sb.toString();
+        return text;
     }
 }

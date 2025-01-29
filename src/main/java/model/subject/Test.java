@@ -1,15 +1,16 @@
 package model.subject;
 
+import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.List;
 
-public class Test {
+public class Test implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String chapterId;
     private String title;
     private String startTime;
-    private int duration;
-    private List<Question> questions;
+    private int duration; // in minutes
+    private ArrayList<Question> questions;
 
     public Test(String id, String chapterId, String title, String startTime, int duration) {
         this.id = id;
@@ -20,14 +21,7 @@ public class Test {
         this.questions = new ArrayList<>();
     }
 
-    public void addQuestion(Question question) {
-        questions.add(question);
-    }
-
-    public List<Question> getQuestions() {
-        return questions;
-    }
-
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -48,24 +42,25 @@ public class Test {
         return duration;
     }
 
-    public String toStringCSV() {
-        // For CSV writing
-        // Format: "id,chapterId,title,startTime,duration,questions"
-        return this.getId() + "," + this.getChapterId() + "," + this.getTitle() + "," + this.getStartTime() + ","
-                + this.getDuration() + "," + questionsToString();
+    public ArrayList<Question> getQuestions() {
+        return questions;
     }
 
-    private String questionsToString() {
-        StringBuilder sb = new StringBuilder();
-        for (Question q : questions) {
-            sb.append(q.toStringCSV()).append(";");
-        }
-        return sb.toString();
+    // Methods to manage questions
+    public void addQuestion(Question question) {
+        questions.add(question);
     }
 
+    // toString for serialization (optional)
     @Override
     public String toString() {
-        // For display in UI components
-        return this.getTitle() + " (Start: " + this.getStartTime() + ", Duration: " + this.getDuration() + " mins)";
+        return "Test{" +
+                "id='" + id + '\'' +
+                ", chapterId='" + chapterId + '\'' +
+                ", title='" + title + '\'' +
+                ", startTime='" + startTime + '\'' +
+                ", duration=" + duration +
+                ", questions=" + questions +
+                '}';
     }
 }

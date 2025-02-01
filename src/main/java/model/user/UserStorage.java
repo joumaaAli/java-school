@@ -74,4 +74,16 @@ public class UserStorage implements Serializable {
         users = updatedUsers;
         saveUsers();
     }
+
+    public static User getUserById(String id) {
+        ArrayList<User> latestUsers = SerializationUtil.readFromFile(FILE_PATH);
+        if (latestUsers != null) {
+            users = latestUsers;
+        }
+        return users.stream()
+                .filter(user -> user.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
 }

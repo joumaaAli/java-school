@@ -1,7 +1,13 @@
 package model.subject;
 
+import model.user.Notification;
 import model.user.Student;
+import model.user.Teacher;
+import model.user.UserStorage;
+import utils.SerializationUtil;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Session implements Serializable {
@@ -11,6 +17,9 @@ public class Session implements Serializable {
     private String dateTime;
     private String chapterId;
     private String groupId;
+    private List<Message> messages;
+    private List<String> teacherIds;
+    private List<String> studentIds; // Tracks students currently in the session
 
     public Session(String id, String title, String dateTime, String chapterId, String groupId) {
         this.id = id;
@@ -18,6 +27,9 @@ public class Session implements Serializable {
         this.dateTime = dateTime;
         this.chapterId = chapterId;
         this.groupId = groupId;
+        this.messages = new ArrayList<>();
+        this.teacherIds = new ArrayList<>();
+        this.studentIds = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -41,22 +53,58 @@ public class Session implements Serializable {
         return groupId;
     }
 
-    // Dummy implementation of notifyStudents
-    public void notifyStudents(List<Student> students) {
-        for (Student s : students) {
-            System.out.println("Notifying " + s.getName() + " about session: " + title);
+    public List<Message> getMessages() {
+        return messages;
+    }
+
+    public List<String> getTeacherIds() {
+        return teacherIds;
+    }
+
+    public List<String> getStudentIds() {
+        return studentIds;
+    }
+
+    public void addTeacher(String teacherId) {
+        if (!teacherIds.contains(teacherId)) {
+            teacherIds.add(teacherId);
         }
     }
 
-    // toString for serialization (optional)
+    public void removeTeacher(String teacherId) {
+        teacherIds.remove(teacherId);
+    }
+
+    public void addStudent(String studentId) {
+        if (!studentIds.contains(studentId)) {
+            studentIds.add(studentId);
+        }
+    }
+
+    public void removeStudent(String studentId) {
+        studentIds.remove(studentId);
+    }
+
+    public void addMessage(Message message) {
+        this.messages.add(message);
+    }
+
+    public void notifyStudents(List<Student> students) {
+        for (Student s : students) {
+            Notification notif = new Notification("New session: " + title, this.id);
+            System.out.println("Notifying student: " + s.getId());
+            System.out.println(notif);
+            s.addNotification(notif);
+        }
+        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+    }
+
     @Override
     public String toString() {
         return "Session{" +
                 "id='" + id + '\'' +
                 ", title='" + title + '\'' +
                 ", dateTime='" + dateTime + '\'' +
-                ", chapterId='" + chapterId + '\'' +
-                ", groupId='" + groupId + '\'' +
                 '}';
     }
 }

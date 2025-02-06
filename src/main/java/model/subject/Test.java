@@ -11,6 +11,7 @@ public class Test implements Serializable {
     private String startTime;
     private int duration; // in minutes
     private ArrayList<Question> questions;
+    private ArrayList<TestResult> testResults; // New field to store exam results
 
     public Test(String id, String chapterId, String title, String startTime, int duration) {
         this.id = id;
@@ -19,6 +20,7 @@ public class Test implements Serializable {
         this.startTime = startTime;
         this.duration = duration;
         this.questions = new ArrayList<>();
+        this.testResults = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -46,21 +48,31 @@ public class Test implements Serializable {
         return questions;
     }
 
+    public ArrayList<TestResult> getTestResults() {
+        return testResults;
+    }
+
+    public void addTestResult(TestResult result) {
+        if (testResults == null) {
+            testResults = new ArrayList<>();
+        }
+        testResults.add(result);
+    }
+
     // Methods to manage questions
     public void addQuestion(Question question) {
         questions.add(question);
     }
 
-    // toString for serialization (optional)
+    // Accept method for the Visitor pattern
+    public void accept(utils.visitor.ExamVisitor visitor) {
+        visitor.visit(this);
+    }
+
     @Override
     public String toString() {
         return "Test{" +
-                "id='" + id + '\'' +
-                ", chapterId='" + chapterId + '\'' +
-                ", title='" + title + '\'' +
-                ", startTime='" + startTime + '\'' +
-                ", duration=" + duration +
-                ", questions=" + questions +
+                title + '\'' +
                 '}';
     }
 }

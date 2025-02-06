@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.stream.Collectors;
+
 import model.subject.*;
 import model.user.Teacher;
 import model.user.Notification;
@@ -19,6 +20,9 @@ import model.user.User;
 import model.user.UserStorage;
 import utils.IDGenerator;
 import utils.SerializationUtil;
+import utils.decorator.OrderedMultipleChoiceDecorator;
+import utils.interpreter.BasicGradingRuleExpression;
+import utils.interpreter.GradingRuleExpression;
 
 public class StudentDashboard extends JFrame {
     private Student student;
@@ -30,7 +34,7 @@ public class StudentDashboard extends JFrame {
     private ArrayList<Material> materials;
     private ArrayList<Test> tests;
     private ArrayList<Session> sessions;
-    private ArrayList<Teacher> teachers; // store teacher data
+    private ArrayList<Teacher> teachers;
 
     // Test Results
     private ArrayList<TestResult> testResults;
@@ -41,109 +45,87 @@ public class StudentDashboard extends JFrame {
     private DefaultTableModel materialsTableModel;
     private JButton refreshMaterialsButton;
 
-    private JPanel viewTestsPanel;
+    // Merged Tests Tab (combining "View Tests" and "Take Test")
+    private JPanel testsPanel;
     private JTable testsTable;
     private DefaultTableModel testsTableModel;
-    private JButton refreshTestsButton;
+    private JButton takeTestButton;
 
     private JPanel viewAllGroupsPanel;
     private JTable allGroupsTable;
     private DefaultTableModel allGroupsTableModel;
-    private JButton refreshAllGroupsButton;
-    private JButton enrollGroupButton;
-    private JButton leaveGroupButton;
+    private JButton refreshAllGroupsButton, enrollGroupButton, leaveGroupButton;
 
     private JPanel myGroupsPanel;
     private JTable myGroupsTable;
     private DefaultTableModel myGroupsTableModel;
     private JButton refreshMyGroupsButton;
-    private JButton leaveSelectedGroupButton;
 
     private JPanel payDuePanel;
     private JLabel currentBalanceLabel;
     private JTextField paymentAmountField;
     private JButton payButton;
 
-    // Panels for Taking Tests and Viewing Results
-    private JPanel takeTestPanel;
-    private JTable availableTestsTable;
-    private DefaultTableModel availableTestsTableModel;
-    private JButton takeTestButton;
-
     private JPanel viewTestResultsPanel;
     private JTable testResultsTable;
     private DefaultTableModel testResultsTableModel;
     private JButton refreshTestResultsButton;
 
-    // Notifications Panel
     private JPanel notificationsPanel;
     private JTable notificationsTable;
     private DefaultTableModel notificationsTableModel;
     private JButton refreshNotificationsButton;
 
-    // Sessions Tab (for sessions the student can join)
     private JPanel sessionsPanel;
     private JTable sessionsTable;
     private DefaultTableModel sessionsTableModel;
-    private JButton refreshSessionsButton;
-    private JButton joinSessionButton; // NEW: Button to join selected session
+    private JButton refreshSessionsButton, joinSessionButton;
 
     private Timer notificationRefreshTimer;
 
     public StudentDashboard(Student student) {
-        // Store the initially passed student
         this.student = student;
         loadData();
         initComponents();
     }
 
-    /**
-     * Reload data from disk and refresh the student object from storage.
-     */
     private void loadData() {
         subjects = SerializationUtil.readFromFile("subjects.ser");
         if (subjects == null) {
             subjects = new ArrayList<>();
-            System.out.println("No existing subjects found.");
         }
         chapters = SerializationUtil.readFromFile("chapters.ser");
         if (chapters == null) {
             chapters = new ArrayList<>();
-            System.out.println("No existing chapters found.");
         }
         groups = SerializationUtil.readFromFile("groups.ser");
         if (groups == null) {
             groups = new ArrayList<>();
-            System.out.println("No existing groups found.");
         }
         materials = SerializationUtil.readFromFile("materials.ser");
         if (materials == null) {
             materials = new ArrayList<>();
-            System.out.println("No existing materials found.");
         }
         tests = SerializationUtil.readFromFile("tests.ser");
         if (tests == null) {
             tests = new ArrayList<>();
-            System.out.println("No existing tests found.");
         }
         sessions = SerializationUtil.readFromFile("sessions.ser");
         if (sessions == null) {
             sessions = new ArrayList<>();
-            System.out.println("No existing sessions found.");
         }
         List<User> allUsers = UserStorage.getUsers();
         teachers = allUsers.stream()
                 .filter(u -> u instanceof Teacher)
                 .map(u -> (Teacher) u)
                 .collect(Collectors.toCollection(ArrayList::new));
-        // IMPORTANT: Refresh the student instance from storage so that new
-        // notifications are loaded.
+        // Refresh the student instance from storage so that new notifications are
+        // loaded.
         Student updatedStudent = (Student) UserStorage.getUserById(student.getId());
         if (updatedStudent != null) {
-            this.student = updatedStudent;
+            student = updatedStudent;
         }
         testResults = (ArrayList<TestResult>) student.getTestResults();
-        System.out.println("Loaded " + testResults.size() + " test results for student: " + student.getName());
     }
 
     private void initComponents() {
@@ -152,18 +134,16 @@ public class StudentDashboard extends JFrame {
         JTabbedPane tabbedPane = new JTabbedPane();
 
         initViewMaterialsTab();
-        initViewTestsTab();
+        initTestsTab(); // Merged tab for viewing/taking tests
         initViewAllGroupsTab();
         initMyGroupsTab();
         initPayDuePanel();
-        initTakeTestTab();
         initViewTestResultsTab();
         initNotificationsTab();
         initSessionsTab();
 
         tabbedPane.addTab("View Materials", viewMaterialsPanel);
-        tabbedPane.addTab("View Tests", viewTestsPanel);
-        tabbedPane.addTab("Take Test", takeTestPanel);
+        tabbedPane.addTab("Tests", testsPanel);
         tabbedPane.addTab("View Test Results", viewTestResultsPanel);
         tabbedPane.addTab("View All Groups", viewAllGroupsPanel);
         tabbedPane.addTab("My Groups", myGroupsPanel);
@@ -177,19 +157,6 @@ public class StudentDashboard extends JFrame {
         setSize(1200, 800);
         setLocationRelativeTo(null);
         setVisible(true);
-    }
-
-    /**
-     * Initializes and starts the notification refresh timer.
-     */
-    private void initNotificationRefreshTimer() {
-        notificationRefreshTimer = new Timer();
-        notificationRefreshTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                SwingUtilities.invokeLater(() -> populateNotifications());
-            }
-        }, 0, 10000); // Refresh every 10 seconds
     }
 
     // -------------------- View Materials Tab --------------------
@@ -214,6 +181,8 @@ public class StudentDashboard extends JFrame {
 
     private void populateMaterialsTable() {
         materialsTableModel.setRowCount(0);
+        // Show only materials for chapters associated with groups the student is
+        // enrolled in.
         ArrayList<Group> studentGroups = groups.stream()
                 .filter(g -> g.getStudentIds().contains(student.getId()))
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -231,9 +200,9 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // -------------------- View Tests Tab --------------------
-    private void initViewTestsTab() {
-        viewTestsPanel = new JPanel(new BorderLayout());
+    // -------------------- Merged Tests Tab --------------------
+    private void initTestsTab() {
+        testsPanel = new JPanel(new BorderLayout());
         testsTableModel = new DefaultTableModel();
         testsTableModel.addColumn("Test ID");
         testsTableModel.addColumn("Title");
@@ -243,14 +212,16 @@ public class StudentDashboard extends JFrame {
         populateTestsTable();
         testsTable = new JTable(testsTableModel);
         JScrollPane scrollPane = new JScrollPane(testsTable);
-        viewTestsPanel.add(scrollPane, BorderLayout.CENTER);
-        refreshTestsButton = new JButton("Refresh");
-        refreshTestsButton.addActionListener(e -> populateTestsTable());
+        testsPanel.add(scrollPane, BorderLayout.CENTER);
+        takeTestButton = new JButton("Take Selected Test");
+        takeTestButton.addActionListener(e -> takeSelectedTest());
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(refreshTestsButton);
-        viewTestsPanel.add(buttonPanel, BorderLayout.SOUTH);
+        buttonPanel.add(takeTestButton);
+        testsPanel.add(buttonPanel, BorderLayout.SOUTH);
     }
 
+    // This method merges the functionality of the previous populateTestsTable and
+    // populateAvailableTestsTable.
     private void populateTestsTable() {
         testsTableModel.setRowCount(0);
         ArrayList<Group> studentGroups = groups.stream()
@@ -263,6 +234,7 @@ public class StudentDashboard extends JFrame {
         ArrayList<Test> relevantTests = tests.stream()
                 .filter(t -> chapterIds.contains(t.getChapterId()))
                 .collect(Collectors.toCollection(ArrayList::new));
+        // Exclude tests that have already been taken
         ArrayList<String> takenTestIds = testResults.stream()
                 .map(TestResult::getTestId)
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -274,6 +246,27 @@ public class StudentDashboard extends JFrame {
             testsTableModel
                     .addRow(new Object[] { t.getId(), t.getTitle(), t.getStartTime(), t.getDuration(), chapterName });
         }
+    }
+
+    private void takeSelectedTest() {
+        int selectedRow = testsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a test to take.", "No Test Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String testId = (String) testsTableModel.getValueAt(selectedRow, 0);
+        Test selectedTest = tests.stream()
+                .filter(t -> t.getId().equals(testId))
+                .findFirst().orElse(null);
+        if (selectedTest == null) {
+            JOptionPane.showMessageDialog(this, "Selected test not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        TestTakingDialog testDialog = new TestTakingDialog(this, selectedTest);
+        testDialog.setVisible(true);
+        populateTestsTable(); // refresh after test submission
+        populateTestResultsTable();
     }
 
     // -------------------- View All Groups Tab --------------------
@@ -300,14 +293,14 @@ public class StudentDashboard extends JFrame {
         };
         JScrollPane scrollPane = new JScrollPane(allGroupsTable);
         viewAllGroupsPanel.add(scrollPane, BorderLayout.CENTER);
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         refreshAllGroupsButton = new JButton("Refresh");
         enrollGroupButton = new JButton("Enroll in Selected Group");
         leaveGroupButton = new JButton("Leave Selected Group");
-        buttonsPanel.add(refreshAllGroupsButton);
-        buttonsPanel.add(enrollGroupButton);
-        buttonsPanel.add(leaveGroupButton);
-        viewAllGroupsPanel.add(buttonsPanel, BorderLayout.SOUTH);
+        buttonPanel.add(refreshAllGroupsButton);
+        buttonPanel.add(enrollGroupButton);
+        buttonPanel.add(leaveGroupButton);
+        viewAllGroupsPanel.add(buttonPanel, BorderLayout.SOUTH);
         refreshAllGroupsButton.addActionListener(e -> populateAllGroupsTable());
         enrollGroupButton.addActionListener(e -> enrollInSelectedGroup());
         leaveGroupButton.addActionListener(e -> leaveSelectedGroup());
@@ -338,8 +331,7 @@ public class StudentDashboard extends JFrame {
         String groupId = (String) allGroupsTableModel.getValueAt(selectedRow, 0);
         Group selectedGroup = groups.stream()
                 .filter(g -> g.getId().equals(groupId))
-                .findFirst()
-                .orElse(null);
+                .findFirst().orElse(null);
         if (selectedGroup == null) {
             JOptionPane.showMessageDialog(this, "Selected group not found.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -370,8 +362,7 @@ public class StudentDashboard extends JFrame {
         String groupId = (String) allGroupsTableModel.getValueAt(selectedRow, 0);
         Group selectedGroup = groups.stream()
                 .filter(g -> g.getId().equals(groupId))
-                .findFirst()
-                .orElse(null);
+                .findFirst().orElse(null);
         if (selectedGroup == null) {
             JOptionPane.showMessageDialog(this, "Selected group not found.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -390,7 +381,6 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // -------------------- My Groups Tab --------------------
     private void initMyGroupsTab() {
         myGroupsPanel = new JPanel(new BorderLayout());
         myGroupsTableModel = new DefaultTableModel();
@@ -402,10 +392,11 @@ public class StudentDashboard extends JFrame {
         myGroupsTable = new JTable(myGroupsTableModel);
         JScrollPane scrollPane = new JScrollPane(myGroupsTable);
         myGroupsPanel.add(scrollPane, BorderLayout.CENTER);
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         refreshMyGroupsButton = new JButton("Refresh");
-        buttonsPanel.add(refreshMyGroupsButton);
+        buttonPanel.add(refreshMyGroupsButton);
         refreshMyGroupsButton.addActionListener(e -> populateMyGroupsTable());
+        myGroupsPanel.add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private void populateMyGroupsTable() {
@@ -421,7 +412,6 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // -------------------- Pay Due Panel --------------------
     private void initPayDuePanel() {
         payDuePanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -493,74 +483,6 @@ public class StudentDashboard extends JFrame {
         UserStorage.updateUsers(allUsers);
     }
 
-    // -------------------- Take Test Tab --------------------
-    private void initTakeTestTab() {
-        takeTestPanel = new JPanel(new BorderLayout());
-        availableTestsTableModel = new DefaultTableModel();
-        availableTestsTableModel.addColumn("Test ID");
-        availableTestsTableModel.addColumn("Title");
-        availableTestsTableModel.addColumn("Start Time");
-        availableTestsTableModel.addColumn("Duration (mins)");
-        availableTestsTableModel.addColumn("Chapter");
-        populateAvailableTestsTable();
-        availableTestsTable = new JTable(availableTestsTableModel);
-        JScrollPane scrollPane = new JScrollPane(availableTestsTable);
-        takeTestPanel.add(scrollPane, BorderLayout.CENTER);
-        takeTestButton = new JButton("Take Selected Test");
-        takeTestButton.addActionListener(e -> takeSelectedTest());
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonPanel.add(takeTestButton);
-        takeTestPanel.add(buttonPanel, BorderLayout.SOUTH);
-    }
-
-    private void populateAvailableTestsTable() {
-        availableTestsTableModel.setRowCount(0);
-        ArrayList<Group> studentGroups = groups.stream()
-                .filter(g -> g.getStudentIds().contains(student.getId()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<String> chapterIds = studentGroups.stream()
-                .map(Group::getChapterId)
-                .distinct()
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<Test> relevantTests = tests.stream()
-                .filter(t -> chapterIds.contains(t.getChapterId()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<String> takenTestIds = testResults.stream()
-                .map(TestResult::getTestId)
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<Test> availableTests = relevantTests.stream()
-                .filter(t -> !takenTestIds.contains(t.getId()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        for (Test t : availableTests) {
-            String chapterName = getChapterNameById(t.getChapterId());
-            availableTestsTableModel
-                    .addRow(new Object[] { t.getId(), t.getTitle(), t.getStartTime(), t.getDuration(), chapterName });
-        }
-    }
-
-    private void takeSelectedTest() {
-        int selectedRow = availableTestsTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a test to take.", "No Test Selected",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        String testId = (String) availableTestsTableModel.getValueAt(selectedRow, 0);
-        Test selectedTest = tests.stream()
-                .filter(t -> t.getId().equals(testId))
-                .findFirst()
-                .orElse(null);
-        if (selectedTest == null) {
-            JOptionPane.showMessageDialog(this, "Selected test not found.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        TestTakingDialog testDialog = new TestTakingDialog(this, selectedTest);
-        testDialog.setVisible(true);
-        populateAvailableTestsTable();
-        populateTestResultsTable();
-    }
-
-    // -------------------- View Test Results Tab --------------------
     private void initViewTestResultsTab() {
         viewTestResultsPanel = new JPanel(new BorderLayout());
         testResultsTableModel = new DefaultTableModel();
@@ -584,22 +506,20 @@ public class StudentDashboard extends JFrame {
         for (TestResult tr : testResults) {
             Test test = tests.stream()
                     .filter(t -> t.getId().equals(tr.getTestId()))
-                    .findFirst()
-                    .orElse(null);
+                    .findFirst().orElse(null);
             String testTitle = (test != null) ? test.getTitle() : "Unknown";
             testResultsTableModel.addRow(new Object[] { tr.getTestId(), testTitle, String.format("%.2f", tr.getScore()),
                     tr.getSubmissionTime() });
         }
     }
 
-    // -------------------- Notifications Tab --------------------
     private void initNotificationsTab() {
         notificationsPanel = new JPanel(new BorderLayout());
         notificationsTableModel = new DefaultTableModel(new Object[] { "Session", "Date", "Status", "Action" }, 0);
         notificationsTable = new JTable(notificationsTableModel) {
             @Override
             public Class<?> getColumnClass(int column) {
-                return column == 3 ? JButton.class : String.class;
+                return (column == 3) ? JButton.class : String.class;
             }
         };
         notificationsTable.getColumn("Action").setCellRenderer(new ButtonRenderer());
@@ -607,7 +527,6 @@ public class StudentDashboard extends JFrame {
         JScrollPane scroll = new JScrollPane(notificationsTable);
         JPanel buttonPanel = new JPanel();
         refreshNotificationsButton = new JButton("Refresh");
-        // NEW: Add Remove Notification button
         JButton removeNotificationButton = new JButton("Remove Notification");
         buttonPanel.add(refreshNotificationsButton);
         buttonPanel.add(removeNotificationButton);
@@ -618,7 +537,6 @@ public class StudentDashboard extends JFrame {
         new Timer().schedule(new TimerTask() {
             public void run() {
                 SwingUtilities.invokeLater(() -> {
-                    // Refresh student object from storage to include new notifications.
                     Student updatedStudent = (Student) UserStorage.getUserById(student.getId());
                     if (updatedStudent != null) {
                         student = updatedStudent;
@@ -630,19 +548,15 @@ public class StudentDashboard extends JFrame {
     }
 
     private void populateNotifications() {
-        // Refresh the sessions list so we pick up any new sessions
         sessions = SerializationUtil.readFromFile("sessions.ser");
-        System.out.println(sessions);
         if (sessions == null) {
             sessions = new ArrayList<>();
         }
-        System.out.println(student);
         notificationsTableModel.setRowCount(0);
         student.getNotifications().forEach(notif -> {
             Session session = sessions.stream()
                     .filter(s -> s.getId().equals(notif.getSessionId()))
-                    .findFirst()
-                    .orElse(null);
+                    .findFirst().orElse(null);
             if (session != null) {
                 boolean isJoined = session.getStudentIds().contains(student.getId());
                 notificationsTableModel.addRow(new Object[] { session.getTitle(), session.getDateTime(),
@@ -651,7 +565,6 @@ public class StudentDashboard extends JFrame {
         });
     }
 
-    // NEW: Remove selected notification from student's notifications list.
     private void removeSelectedNotification() {
         int selectedRow = notificationsTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -659,15 +572,13 @@ public class StudentDashboard extends JFrame {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-        String sessionTitle = (String) notificationsTableModel.getValueAt(selectedRow, 0);
-        String sessionDateTime = (String) notificationsTableModel.getValueAt(selectedRow, 1);
-        // Find the matching notification based on the session details.
+        String sessionTitle = (String) notificationsTable.getValueAt(selectedRow, 0);
+        String sessionDateTime = (String) notificationsTable.getValueAt(selectedRow, 1);
         Notification toRemove = null;
         for (Notification notif : student.getNotifications()) {
             Session session = sessions.stream()
                     .filter(s -> s.getId().equals(notif.getSessionId()))
-                    .findFirst()
-                    .orElse(null);
+                    .findFirst().orElse(null);
             if (session != null && session.getTitle().equals(sessionTitle)
                     && session.getDateTime().equals(sessionDateTime)) {
                 toRemove = notif;
@@ -685,10 +596,8 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // -------------------- Sessions Tab (Student) --------------------
     private void initSessionsTab() {
         sessionsPanel = new JPanel(new BorderLayout());
-        // Show only sessions for groups the student is enrolled in.
         sessionsTableModel = new DefaultTableModel(
                 new Object[] { "Session ID", "Title", "DateTime", "Group", "Participants" }, 0);
         sessionsTable = new JTable(sessionsTableModel);
@@ -696,7 +605,7 @@ public class StudentDashboard extends JFrame {
         sessionsPanel.add(tableScroll, BorderLayout.CENTER);
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         refreshSessionsButton = new JButton("Refresh Sessions");
-        joinSessionButton = new JButton("Join Session"); // NEW: Button to join a session
+        joinSessionButton = new JButton("Join Session");
         topPanel.add(refreshSessionsButton);
         topPanel.add(joinSessionButton);
         sessionsPanel.add(topPanel, BorderLayout.NORTH);
@@ -711,8 +620,6 @@ public class StudentDashboard extends JFrame {
 
     private void populateSessionsTable() {
         sessionsTableModel.setRowCount(0);
-        // Only display sessions whose groupId is among those the student is enrolled
-        // in.
         List<String> studentGroupIds = student.getGroupIds();
         for (Session s : sessions) {
             if (studentGroupIds.contains(s.getGroupId())) {
@@ -726,7 +633,6 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // NEW: Allow student to join the selected session from the Sessions page.
     private void joinSelectedSession() {
         int selectedRow = sessionsTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -737,8 +643,7 @@ public class StudentDashboard extends JFrame {
         String sessionId = (String) sessionsTableModel.getValueAt(selectedRow, 0);
         Session session = sessions.stream()
                 .filter(s -> s.getId().equals(sessionId))
-                .findFirst()
-                .orElse(null);
+                .findFirst().orElse(null);
         if (session == null) {
             JOptionPane.showMessageDialog(this, "Selected session not found.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -750,53 +655,18 @@ public class StudentDashboard extends JFrame {
         openSessionRoom(session);
     }
 
-    /**
-     * When a student clicks the "Join" button in a notification, verify that they
-     * are enrolled
-     * and open the session room.
-     */
-    private void joinSession(int row) {
-        String sessionTitle = (String) notificationsTableModel.getValueAt(row, 0);
-        Session session = sessions.stream()
-                .filter(s -> s.getTitle().equals(sessionTitle))
-                .findFirst()
-                .orElse(null);
-        if (session != null) {
-            Group sessionGroup = groups.stream()
-                    .filter(g -> g.getId().equals(session.getGroupId()))
-                    .findFirst()
-                    .orElse(null);
-            if (sessionGroup == null || !sessionGroup.getStudentIds().contains(student.getId())) {
-                JOptionPane.showMessageDialog(this, "You are not enrolled in the group for this session.",
-                        "Access Denied", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            session.addStudent(student.getId());
-            SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
-            openSessionRoom(session);
-            populateNotifications();
-        }
-    }
-
-    // Modified: Students no longer can send messages.
     private void openSessionRoom(Session session) {
-        // Wrap the session in an array so we can update it inside the inner class.
         final Session[] currentSession = new Session[] { session };
-
         JDialog sessionDialog = new JDialog(this, "Session: " + currentSession[0].getTitle(), true);
         sessionDialog.setSize(800, 600);
         sessionDialog.setLayout(new BorderLayout());
-
         JTextArea chatArea = new JTextArea();
         chatArea.setEditable(false);
         JScrollPane chatScroll = new JScrollPane(chatArea);
         sessionDialog.add(chatScroll, BorderLayout.CENTER);
-
-        // Timer to refresh the chat area every 3 seconds.
         new Timer().schedule(new TimerTask() {
             public void run() {
                 SwingUtilities.invokeLater(() -> {
-                    // Reload the session from disk
                     ArrayList<Session> sessionsList = SerializationUtil.readFromFile("sessions.ser");
                     if (sessionsList != null) {
                         for (Session s : sessionsList) {
@@ -812,7 +682,6 @@ public class StudentDashboard extends JFrame {
                 });
             }
         }, 0, 3000);
-
         sessionDialog.setVisible(true);
     }
 
@@ -825,8 +694,7 @@ public class StudentDashboard extends JFrame {
         private JLabel questionLabel;
         private JRadioButton[] optionButtons;
         private ButtonGroup optionsGroup;
-        private JButton nextButton;
-        private JButton submitButton;
+        private JButton nextButton, submitButton;
 
         public TestTakingDialog(JFrame parent, Test test) {
             super(parent, "Taking Test: " + test.getTitle(), true);
@@ -921,39 +789,38 @@ public class StudentDashboard extends JFrame {
                 }
             }
             double score = 0.0;
+            // Use the grading rule with a decorator to allow partial credit.
+            GradingRuleExpression basicRule = new BasicGradingRuleExpression();
+            GradingRuleExpression ruleWithDecorator = new OrderedMultipleChoiceDecorator(basicRule);
             for (Question q : questions) {
                 if (answers.containsKey(q.getId())) {
                     int selected = answers.get(q.getId());
-                    if (selected == q.getCorrectOption()) {
-                        score += 1.0;
-                    }
+                    score += ruleWithDecorator.evaluate(q, selected);
                 }
             }
             score = (score / questions.size()) * 100.0;
             String submissionTime = java.time.LocalDateTime.now().toString();
             TestResult tr = new TestResult(test.getId(), student.getId(), answers, score, submissionTime);
-            testResults.add(tr);
+            test.addTestResult(tr);
             student.addTestResult(tr);
-            saveTestResults();
+            saveTestResult(tr);
             JOptionPane.showMessageDialog(this,
-                    "Test submitted successfully!\nYour Score: " + String.format("%.2f", score) + "%", "Test Submitted",
-                    JOptionPane.INFORMATION_MESSAGE);
+                    "Test submitted successfully!\nYour Score: " + String.format("%.2f", score) + "%",
+                    "Test Submitted", JOptionPane.INFORMATION_MESSAGE);
             dispose();
         }
 
-        private void saveTestResults() {
+        private void saveTestResult(TestResult tr) {
             ArrayList<TestResult> allTestResults = SerializationUtil.readFromFile("testResults.ser");
             if (allTestResults == null) {
                 allTestResults = new ArrayList<>();
             }
-            allTestResults.addAll(testResults);
+            allTestResults.add(tr);
             SerializationUtil.saveDataToDisk(allTestResults, "testResults.ser");
-            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
         }
+
     }
 
-    // -------------------- Button Renderer & Editor for Notifications
-    // --------------------
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setText("Join");
@@ -963,6 +830,29 @@ public class StudentDashboard extends JFrame {
         public Component getTableCellRendererComponent(JTable table, Object obj, boolean selected, boolean focused,
                 int row, int col) {
             return this;
+        }
+    }
+
+    private void joinSession(int row) {
+        String sessionTitle = (String) notificationsTableModel.getValueAt(row, 0);
+        Session session = sessions.stream()
+                .filter(s -> s.getTitle().equals(sessionTitle))
+                .findFirst()
+                .orElse(null);
+        if (session != null) {
+            Group sessionGroup = groups.stream()
+                    .filter(g -> g.getId().equals(session.getGroupId()))
+                    .findFirst()
+                    .orElse(null);
+            if (sessionGroup == null || !sessionGroup.getStudentIds().contains(student.getId())) {
+                JOptionPane.showMessageDialog(this, "You are not enrolled in the group for this session.",
+                        "Access Denied", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            session.addStudent(student.getId());
+            SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+            openSessionRoom(session);
+            populateNotifications();
         }
     }
 
@@ -982,8 +872,7 @@ public class StudentDashboard extends JFrame {
                         String sessionTitle = (String) notificationsTable.getValueAt(row, 0);
                         Session session = sessions.stream()
                                 .filter(s -> s.getTitle().equals(sessionTitle))
-                                .findFirst()
-                                .orElse(null);
+                                .findFirst().orElse(null);
                         if (session != null)
                             openSessionRoom(session);
                     }
@@ -999,7 +888,6 @@ public class StudentDashboard extends JFrame {
         }
     }
 
-    // -------------------- Utility Methods --------------------
     private String getChapterNameById(String chapterId) {
         for (Chapter c : chapters) {
             if (c.getId().equals(chapterId))
@@ -1022,6 +910,15 @@ public class StudentDashboard extends JFrame {
                 return t.getName();
         }
         return "Unknown";
+    }
+
+    private void initNotificationRefreshTimer() {
+        notificationRefreshTimer = new Timer();
+        notificationRefreshTimer.schedule(new TimerTask() {
+            public void run() {
+                SwingUtilities.invokeLater(() -> populateNotifications());
+            }
+        }, 0, 10000);
     }
 
     @Override

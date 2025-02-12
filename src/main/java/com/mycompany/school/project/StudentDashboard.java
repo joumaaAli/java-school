@@ -90,27 +90,27 @@ public class StudentDashboard extends JFrame {
     }
 
     private void loadData() {
-        subjects = SerializationUtil.readFromFile("subjects.ser");
+        subjects = SerializationUtil.readFromFile("subjects.txt");
         if (subjects == null) {
             subjects = new ArrayList<>();
         }
-        chapters = SerializationUtil.readFromFile("chapters.ser");
+        chapters = SerializationUtil.readFromFile("chapters.txt");
         if (chapters == null) {
             chapters = new ArrayList<>();
         }
-        groups = SerializationUtil.readFromFile("groups.ser");
+        groups = SerializationUtil.readFromFile("groups.txt");
         if (groups == null) {
             groups = new ArrayList<>();
         }
-        materials = SerializationUtil.readFromFile("materials.ser");
+        materials = SerializationUtil.readFromFile("materials.txt");
         if (materials == null) {
             materials = new ArrayList<>();
         }
-        tests = SerializationUtil.readFromFile("tests.ser");
+        tests = SerializationUtil.readFromFile("tests.txt");
         if (tests == null) {
             tests = new ArrayList<>();
         }
-        sessions = SerializationUtil.readFromFile("sessions.ser");
+        sessions = SerializationUtil.readFromFile("sessions.txt");
         if (sessions == null) {
             sessions = new ArrayList<>();
         }
@@ -338,8 +338,8 @@ public class StudentDashboard extends JFrame {
         }
         selectedGroup.addStudent(student.getId());
         student.enrollGroup(groupId);
-        SerializationUtil.saveDataToDisk(groups, "groups.ser");
-        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+        SerializationUtil.saveDataToDisk(groups, "groups.txt");
+        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
         populateAllGroupsTable();
         populateMyGroupsTable();
         JOptionPane.showMessageDialog(this, "Successfully enrolled in the group.", "Enrollment Successful",
@@ -372,8 +372,8 @@ public class StudentDashboard extends JFrame {
         if (confirm == JOptionPane.YES_OPTION) {
             selectedGroup.removeStudent(student.getId());
             student.leaveGroup(groupId);
-            SerializationUtil.saveDataToDisk(groups, "groups.ser");
-            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+            SerializationUtil.saveDataToDisk(groups, "groups.txt");
+            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
             populateAllGroupsTable();
             populateMyGroupsTable();
             JOptionPane.showMessageDialog(this, "You have left the group successfully.", "Left Group",
@@ -548,7 +548,7 @@ public class StudentDashboard extends JFrame {
     }
 
     private void populateNotifications() {
-        sessions = SerializationUtil.readFromFile("sessions.ser");
+        sessions = SerializationUtil.readFromFile("sessions.txt");
         if (sessions == null) {
             sessions = new ArrayList<>();
         }
@@ -650,7 +650,7 @@ public class StudentDashboard extends JFrame {
         }
         if (!session.getStudentIds().contains(student.getId())) {
             session.addStudent(student.getId());
-            SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+            SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
         }
         openSessionRoom(session);
     }
@@ -667,7 +667,7 @@ public class StudentDashboard extends JFrame {
         new Timer().schedule(new TimerTask() {
             public void run() {
                 SwingUtilities.invokeLater(() -> {
-                    ArrayList<Session> sessionsList = SerializationUtil.readFromFile("sessions.ser");
+                    ArrayList<Session> sessionsList = SerializationUtil.readFromFile("sessions.txt");
                     if (sessionsList != null) {
                         for (Session s : sessionsList) {
                             if (s.getId().equals(currentSession[0].getId())) {
@@ -811,12 +811,12 @@ public class StudentDashboard extends JFrame {
         }
 
         private void saveTestResult(TestResult tr) {
-            ArrayList<TestResult> allTestResults = SerializationUtil.readFromFile("testResults.ser");
+            ArrayList<TestResult> allTestResults = SerializationUtil.readFromFile("testResults.txt");
             if (allTestResults == null) {
                 allTestResults = new ArrayList<>();
             }
             allTestResults.add(tr);
-            SerializationUtil.saveDataToDisk(allTestResults, "testResults.ser");
+            SerializationUtil.saveDataToDisk(allTestResults, "testResults.txt");
         }
 
     }
@@ -850,7 +850,7 @@ public class StudentDashboard extends JFrame {
                 return;
             }
             session.addStudent(student.getId());
-            SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+            SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
             openSessionRoom(session);
             populateNotifications();
         }
@@ -935,7 +935,7 @@ public class StudentDashboard extends JFrame {
         boolean exists = allUsers.stream().anyMatch(u -> u.getId().equals(sampleStudent.getId()));
         if (!exists) {
             UserStorage.addUser(sampleStudent);
-            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
         }
         new StudentDashboard(sampleStudent);
     }

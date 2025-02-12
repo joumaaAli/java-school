@@ -96,7 +96,7 @@ public class Session implements Serializable {
             System.out.println(notif);
             s.addNotification(notif);
         }
-        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
     }
 
     @Override

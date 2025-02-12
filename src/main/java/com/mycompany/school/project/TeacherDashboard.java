@@ -108,17 +108,17 @@ public class TeacherDashboard extends JFrame {
     }
 
     private void loadData() {
-        subjects = SerializationUtil.readFromFile("subjects.ser");
+        subjects = SerializationUtil.readFromFile("subjects.txt");
         if (subjects == null) {
             subjects = new ArrayList<>();
             System.out.println("No existing subjects found.");
         }
-        chapters = SerializationUtil.readFromFile("chapters.ser");
+        chapters = SerializationUtil.readFromFile("chapters.txt");
         if (chapters == null) {
             chapters = new ArrayList<>();
             System.out.println("No existing chapters found.");
         }
-        ArrayList<Group> loadedGroups = SerializationUtil.readFromFile("groups.ser");
+        ArrayList<Group> loadedGroups = SerializationUtil.readFromFile("groups.txt");
         if (loadedGroups == null) {
             groups = new ArrayList<>();
             System.out.println("No existing groups found.");
@@ -126,19 +126,19 @@ public class TeacherDashboard extends JFrame {
             groups = loadedGroups;
             System.out.println("Loaded " + groups.size() + " groups.");
         }
-        materials = SerializationUtil.readFromFile("materials.ser");
+        materials = SerializationUtil.readFromFile("materials.txt");
         if (materials == null) {
             materials = new ArrayList<>();
             System.out.println("No existing materials found.");
         }
-        tests = SerializationUtil.readFromFile("tests.ser");
+        tests = SerializationUtil.readFromFile("tests.txt");
         if (tests == null) {
             tests = new ArrayList<>();
             System.out.println("No existing tests found.");
         } else {
-            System.out.println("Loaded " + tests.size() + " tests from tests.ser");
+            System.out.println("Loaded " + tests.size() + " tests from tests.txt");
         }
-        sessions = SerializationUtil.readFromFile("sessions.ser");
+        sessions = SerializationUtil.readFromFile("sessions.txt");
         if (sessions == null) {
             sessions = new ArrayList<>();
             System.out.println("No existing sessions found.");
@@ -152,7 +152,7 @@ public class TeacherDashboard extends JFrame {
                 .filter(u -> u instanceof Student)
                 .map(u -> (Student) u)
                 .collect(Collectors.toList());
-        allTestResults = SerializationUtil.readFromFile("testResults.ser");
+        allTestResults = SerializationUtil.readFromFile("testResults.txt");
         if (allTestResults == null) {
             allTestResults = new ArrayList<>();
             System.out.println("No existing test results found.");
@@ -288,7 +288,7 @@ public class TeacherDashboard extends JFrame {
                 "Confirm Deletion", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             groups.removeIf(g -> g.getId().equals(groupId));
-            SerializationUtil.saveDataToDisk(groups, "groups.ser");
+            SerializationUtil.saveDataToDisk(groups, "groups.txt");
             populateGroupsTable();
             JOptionPane.showMessageDialog(this, "Group deleted successfully.", "Deletion Successful",
                     JOptionPane.INFORMATION_MESSAGE);
@@ -314,7 +314,7 @@ public class TeacherDashboard extends JFrame {
             return;
         }
         selectedGroup.addTeacher(teacher.getId());
-        SerializationUtil.saveDataToDisk(groups, "groups.ser");
+        SerializationUtil.saveDataToDisk(groups, "groups.txt");
         populateGroupsTable();
         populateMyGroupsTable();
         JOptionPane.showMessageDialog(this, "You have been assigned to the selected group.", "Assignment Successful",
@@ -343,7 +343,7 @@ public class TeacherDashboard extends JFrame {
                 "Confirm Removal", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             selectedGroup.removeTeacher(teacher.getId());
-            SerializationUtil.saveDataToDisk(groups, "groups.ser");
+            SerializationUtil.saveDataToDisk(groups, "groups.txt");
             populateGroupsTable();
             populateMyGroupsTable();
             JOptionPane.showMessageDialog(this, "You have been removed from the group.", "Removal Successful",
@@ -453,7 +453,7 @@ public class TeacherDashboard extends JFrame {
         }
         Material material = new Material(IDGenerator.generateID(), title, type, content, selectedChapter.getId());
         materials.add(material);
-        SerializationUtil.saveDataToDisk(materials, "materials.ser");
+        SerializationUtil.saveDataToDisk(materials, "materials.txt");
         JOptionPane.showMessageDialog(this, "Material added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         materialTitleField.setText("");
         materialContentField.setText("");
@@ -661,7 +661,7 @@ public class TeacherDashboard extends JFrame {
                 newTest.addQuestion(q);
             }
             tests.add(newTest);
-            SerializationUtil.saveDataToDisk(tests, "tests.ser");
+            SerializationUtil.saveDataToDisk(tests, "tests.txt");
             populateTestTable(testTableModel);
             JOptionPane.showMessageDialog(dialog, "Test and questions added successfully.", "Success",
                     JOptionPane.INFORMATION_MESSAGE);
@@ -737,7 +737,7 @@ public class TeacherDashboard extends JFrame {
         Session session = teacher.createSession(title, dateTime, selectedGroup.getChapterId(), selectedGroup.getId());
         session.addTeacher(teacher.getId());
         sessions.add(session);
-        SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+        SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
         JOptionPane.showMessageDialog(this, "Session added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         // Notify students in the group (if needed)
         sessionTitleField.setText("");
@@ -811,8 +811,8 @@ public class TeacherDashboard extends JFrame {
     }
 
     private void viewSelectedTestResults() {
-        tests = SerializationUtil.readFromFile("tests.ser");
-        allTestResults = SerializationUtil.readFromFile("testResults.ser");
+        tests = SerializationUtil.readFromFile("tests.txt");
+        allTestResults = SerializationUtil.readFromFile("testResults.txt");
         if (allTestResults == null) {
             allTestResults = new ArrayList<>();
         }
@@ -859,7 +859,7 @@ public class TeacherDashboard extends JFrame {
         new Timer().schedule(new TimerTask() {
             public void run() {
                 SwingUtilities.invokeLater(() -> {
-                    sessions = SerializationUtil.readFromFile("sessions.ser");
+                    sessions = SerializationUtil.readFromFile("sessions.txt");
                     if (sessions == null) {
                         sessions = new ArrayList<>();
                     }
@@ -920,7 +920,7 @@ public class TeacherDashboard extends JFrame {
                 "Confirm End Session", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             sessions.removeIf(s -> s.getId().equals(sessionId));
-            SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+            SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
             populateSessionsTable();
             JOptionPane.showMessageDialog(this, "Session ended successfully.", "Session Ended",
                     JOptionPane.INFORMATION_MESSAGE);
@@ -993,7 +993,7 @@ public class TeacherDashboard extends JFrame {
         boolean exists = allUsers.stream().anyMatch(u -> u.getId().equals(sampleTeacher.getId()));
         if (!exists) {
             UserStorage.addUser(sampleTeacher);
-            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.ser");
+            SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
         }
         new TeacherDashboard(sampleTeacher);
     }

@@ -65,6 +65,6 @@ public class StandardExamProcessor extends ExamProcessor {
         double avg = (results.size() > 0) ? sum / results.size() : 0.0;
         System.out.println(
                 "Finalized exam '" + test.getTitle() + "'. Overall average score: " + String.format("%.2f", avg) + "%");
-        SerializationUtil.saveDataToDisk(test, "test_" + test.getId() + ".ser");
+        SerializationUtil.saveDataToDisk(test, "test_" + test.getId() + ".txt");
     }
 }

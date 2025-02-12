@@ -66,7 +66,7 @@ public class DataInitializer {
         }
 
         private static void initializeSubjects() {
-                String filePath = "subjects.ser";
+                String filePath = "subjects.txt";
                 List<Subject> existingSubjects = SerializationUtil.readFromFile(filePath);
                 if (existingSubjects != null && !existingSubjects.isEmpty()) {
                         System.out.println("Subjects already initialized. Skipping...");
@@ -85,7 +85,7 @@ public class DataInitializer {
         }
 
         private static void initializeChapters() {
-                String filePath = "chapters.ser";
+                String filePath = "chapters.txt";
                 List<Chapter> existingChapters = SerializationUtil.readFromFile(filePath);
                 if (existingChapters != null && !existingChapters.isEmpty()) {
                         System.out.println("Chapters already initialized. Skipping...");
@@ -104,7 +104,7 @@ public class DataInitializer {
         }
 
         private static void initializeGroups(Teacher teacher) {
-                String filePath = "groups.ser";
+                String filePath = "groups.txt";
                 List<Group> existingGroups = SerializationUtil.readFromFile(filePath);
                 if (existingGroups != null && !existingGroups.isEmpty()) {
                         System.out.println("Groups already initialized. Skipping...");
@@ -147,7 +147,7 @@ public class DataInitializer {
         }
 
         private static void initializeMaterials() {
-                String filePath = "materials.ser";
+                String filePath = "materials.txt";
                 List<Material> existingMaterials = SerializationUtil.readFromFile(filePath);
                 if (existingMaterials != null && !existingMaterials.isEmpty()) {
                         System.out.println("Materials already initialized. Skipping...");
@@ -168,7 +168,7 @@ public class DataInitializer {
         }
 
         private static void initializeTests() {
-                String filePath = "tests.ser";
+                String filePath = "tests.txt";
                 List<Test> existingTests = SerializationUtil.readFromFile(filePath);
                 if (existingTests != null && !existingTests.isEmpty()) {
                         System.out.println("Tests already initialized. Skipping...");
@@ -197,7 +197,7 @@ public class DataInitializer {
         }
 
         private static void initializeSessions() {
-                String filePath = "sessions.ser";
+                String filePath = "sessions.txt";
                 List<Session> existingSessions = SerializationUtil.readFromFile(filePath);
                 if (existingSessions != null && !existingSessions.isEmpty()) {
                         System.out.println("Sessions already initialized. Skipping...");

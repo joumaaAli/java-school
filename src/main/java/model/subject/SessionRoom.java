@@ -87,7 +87,7 @@ public class SessionRoom extends JDialog {
             public void run() {
                 SwingUtilities.invokeLater(() -> {
                     // Reload the session from disk
-                    ArrayList<Session> sessionsList = SerializationUtil.readFromFile("sessions.ser");
+                    ArrayList<Session> sessionsList = SerializationUtil.readFromFile("sessions.txt");
                     if (sessionsList != null) {
                         for (Session s : sessionsList) {
                             if (s.getId().equals(session.getId())) {
@@ -166,9 +166,9 @@ public class SessionRoom extends JDialog {
     }
 
     private void saveSession() {
-        ArrayList<Session> sessions = SerializationUtil.readFromFile("sessions.ser");
+        ArrayList<Session> sessions = SerializationUtil.readFromFile("sessions.txt");
         sessions.replaceAll(s -> s.getId().equals(session.getId()) ? session : s);
-        SerializationUtil.saveDataToDisk(sessions, "sessions.ser");
+        SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
     }
 
     @Override

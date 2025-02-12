@@ -8,7 +8,7 @@ import java.util.List;
 
 public class UserStorage implements Serializable {
     private static final long serialVersionUID = 1L;
-    private static final String FILE_PATH = "users.ser";
+    private static final String FILE_PATH = "users.txt";
     private static ArrayList<User> users = loadUsers();
 
     /**

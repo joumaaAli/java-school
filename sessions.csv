@@ -1,6 +1,0 @@
-id,title,dateTime,chapterId,groupId
-sess1,Algebra Workshop,2025-02-15 14:00,chap1,grp1
-sess2,Geometry Seminar,2025-02-20 16:00,chap2,grp2
-sess3,History Lecture,2025-02-25 10:00,chap3,grp3
-sess4,Mechanics Lab,2025-03-05 09:00,chap4,grp4
-sess5,Optics Demonstration,2025-03-10 13:00,chap5,grp4

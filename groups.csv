@@ -1,5 +1,0 @@
-id,groupName,chapterId,teacherIds,studentIds
-grp1,Algebra Group 1,chap1,t1a2b3c4-d5e6-f7g8-h9i0-1234567890ab;s2c3d4e5-f6g7-h8i9-j0k1-234567890abc,s1a2b3c4-d5e6-f7g8-h9i0-0987654321ba;s2e5f6g7-h9i0-j1k2-l3m4-567890abcdef
-grp2,Geometry Group 1,chap2,t2b3c4d5-e6f7-g8h9-i0j1-234567890abc,s3f6g7h8-i0j1-k2l3-m4n5-67890abcdefg;s4g7h8i9-j1k2-l3m4-n5o6-7890abcdefgh;s2e5f6g7-h9i0-j1k2-l3m4-567890abcdef
-grp3,World War II Group 1,chap3,t4d5e6f7-g8h9-i0j1-k2l3-4567890abcd,e1f2g3h4-i5j6-k7l8-m9n0-123456789abc;s3f6g7h8-i0j1-k2l3-m4n5-67890abcdefg;s2e5f6g7-h9i0-j1k2-l3m4-567890abcdef
-grp4,Mechanics Group 1,chap4,t3c4d5e6-f7g8-h9i0-j1k2-34567890abcd,t5f6g7h8-i9j0-k1l2-m3n4-567890abcdef;s4g7h8i9-j1k2-l3m4-n5o6-7890abcdefgh

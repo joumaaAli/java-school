@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 import model.subject.*;
 import model.user.Teacher;
-import model.user.Notification;
 import model.user.Student;
 import model.user.User;
 import model.user.UserStorage;
@@ -71,17 +70,12 @@ public class StudentDashboard extends JFrame {
     private DefaultTableModel testResultsTableModel;
     private JButton refreshTestResultsButton;
 
-    private JPanel notificationsPanel;
-    private JTable notificationsTable;
-    private DefaultTableModel notificationsTableModel;
-    private JButton refreshNotificationsButton;
-
     private JPanel sessionsPanel;
     private JTable sessionsTable;
     private DefaultTableModel sessionsTableModel;
     private JButton refreshSessionsButton, joinSessionButton;
 
-    private Timer notificationRefreshTimer;
+    private Timer notificationRefreshTimer; // used only in student sessions refresh
 
     public StudentDashboard(Student student) {
         this.student = student;
@@ -139,7 +133,6 @@ public class StudentDashboard extends JFrame {
         initMyGroupsTab();
         initPayDuePanel();
         initViewTestResultsTab();
-        initNotificationsTab();
         initSessionsTab();
 
         tabbedPane.addTab("View Materials", viewMaterialsPanel);
@@ -148,11 +141,10 @@ public class StudentDashboard extends JFrame {
         tabbedPane.addTab("View All Groups", viewAllGroupsPanel);
         tabbedPane.addTab("My Groups", myGroupsPanel);
         tabbedPane.addTab("Pay Due Payment", payDuePanel);
-        tabbedPane.addTab("Notifications", notificationsPanel);
         tabbedPane.addTab("Sessions", sessionsPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
-        initNotificationRefreshTimer();
+        // Removed initNotificationRefreshTimer() since notifications tab is removed.
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 800);
         setLocationRelativeTo(null);
@@ -220,8 +212,7 @@ public class StudentDashboard extends JFrame {
         testsPanel.add(buttonPanel, BorderLayout.SOUTH);
     }
 
-    // This method merges the functionality of the previous populateTestsTable and
-    // populateAvailableTestsTable.
+    // This method populates only tests that the student has not taken.
     private void populateTestsTable() {
         testsTableModel.setRowCount(0);
         ArrayList<Group> studentGroups = groups.stream()
@@ -406,7 +397,8 @@ public class StudentDashboard extends JFrame {
                 .collect(Collectors.toCollection(ArrayList::new));
         for (Group g : myGroups) {
             String chapterName = getChapterNameById(g.getChapterId());
-            String teachersNames = g.getTeacherIds().stream().map(this::getTeacherNameById)
+            String teachersNames = g.getTeacherIds().stream()
+                    .map(id -> getTeacherNameById(id))
                     .collect(Collectors.joining("; "));
             myGroupsTableModel.addRow(new Object[] { g.getId(), g.getGroupName(), chapterName, teachersNames });
         }
@@ -510,89 +502,6 @@ public class StudentDashboard extends JFrame {
             String testTitle = (test != null) ? test.getTitle() : "Unknown";
             testResultsTableModel.addRow(new Object[] { tr.getTestId(), testTitle, String.format("%.2f", tr.getScore()),
                     tr.getSubmissionTime() });
-        }
-    }
-
-    private void initNotificationsTab() {
-        notificationsPanel = new JPanel(new BorderLayout());
-        notificationsTableModel = new DefaultTableModel(new Object[] { "Session", "Date", "Status", "Action" }, 0);
-        notificationsTable = new JTable(notificationsTableModel) {
-            @Override
-            public Class<?> getColumnClass(int column) {
-                return (column == 3) ? JButton.class : String.class;
-            }
-        };
-        notificationsTable.getColumn("Action").setCellRenderer(new ButtonRenderer());
-        notificationsTable.getColumn("Action").setCellEditor(new ButtonEditor(new JCheckBox()));
-        JScrollPane scroll = new JScrollPane(notificationsTable);
-        JPanel buttonPanel = new JPanel();
-        refreshNotificationsButton = new JButton("Refresh");
-        JButton removeNotificationButton = new JButton("Remove Notification");
-        buttonPanel.add(refreshNotificationsButton);
-        buttonPanel.add(removeNotificationButton);
-        notificationsPanel.add(scroll, BorderLayout.CENTER);
-        notificationsPanel.add(buttonPanel, BorderLayout.SOUTH);
-        refreshNotificationsButton.addActionListener(e -> populateNotifications());
-        removeNotificationButton.addActionListener(e -> removeSelectedNotification());
-        new Timer().schedule(new TimerTask() {
-            public void run() {
-                SwingUtilities.invokeLater(() -> {
-                    Student updatedStudent = (Student) UserStorage.getUserById(student.getId());
-                    if (updatedStudent != null) {
-                        student = updatedStudent;
-                    }
-                    populateNotifications();
-                });
-            }
-        }, 0, 10000);
-    }
-
-    private void populateNotifications() {
-        sessions = SerializationUtil.readFromFile("sessions.txt");
-        if (sessions == null) {
-            sessions = new ArrayList<>();
-        }
-        notificationsTableModel.setRowCount(0);
-        student.getNotifications().forEach(notif -> {
-            Session session = sessions.stream()
-                    .filter(s -> s.getId().equals(notif.getSessionId()))
-                    .findFirst().orElse(null);
-            if (session != null) {
-                boolean isJoined = session.getStudentIds().contains(student.getId());
-                notificationsTableModel.addRow(new Object[] { session.getTitle(), session.getDateTime(),
-                        isJoined ? "Joined" : "Pending", isJoined ? "Open" : "Join" });
-            }
-        });
-    }
-
-    private void removeSelectedNotification() {
-        int selectedRow = notificationsTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a notification to remove.", "No Notification Selected",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        String sessionTitle = (String) notificationsTable.getValueAt(selectedRow, 0);
-        String sessionDateTime = (String) notificationsTable.getValueAt(selectedRow, 1);
-        Notification toRemove = null;
-        for (Notification notif : student.getNotifications()) {
-            Session session = sessions.stream()
-                    .filter(s -> s.getId().equals(notif.getSessionId()))
-                    .findFirst().orElse(null);
-            if (session != null && session.getTitle().equals(sessionTitle)
-                    && session.getDateTime().equals(sessionDateTime)) {
-                toRemove = notif;
-                break;
-            }
-        }
-        if (toRemove != null) {
-            student.getNotifications().remove(toRemove);
-            UserStorage.updateUsers(UserStorage.getUsers());
-            populateNotifications();
-            JOptionPane.showMessageDialog(this, "Notification removed.", "Removal Successful",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(this, "Notification not found.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -789,7 +698,6 @@ public class StudentDashboard extends JFrame {
                 }
             }
             double score = 0.0;
-            // Use the grading rule with a decorator to allow partial credit.
             GradingRuleExpression basicRule = new BasicGradingRuleExpression();
             GradingRuleExpression ruleWithDecorator = new OrderedMultipleChoiceDecorator(basicRule);
             for (Question q : questions) {
@@ -818,115 +726,34 @@ public class StudentDashboard extends JFrame {
             allTestResults.add(tr);
             SerializationUtil.saveDataToDisk(allTestResults, "testResults.txt");
         }
-
     }
 
-    private class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
-            setText("Join");
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object obj, boolean selected, boolean focused,
-                int row, int col) {
-            return this;
-        }
-    }
-
-    private void joinSession(int row) {
-        String sessionTitle = (String) notificationsTableModel.getValueAt(row, 0);
-        Session session = sessions.stream()
-                .filter(s -> s.getTitle().equals(sessionTitle))
-                .findFirst()
-                .orElse(null);
-        if (session != null) {
-            Group sessionGroup = groups.stream()
-                    .filter(g -> g.getId().equals(session.getGroupId()))
-                    .findFirst()
-                    .orElse(null);
-            if (sessionGroup == null || !sessionGroup.getStudentIds().contains(student.getId())) {
-                JOptionPane.showMessageDialog(this, "You are not enrolled in the group for this session.",
-                        "Access Denied", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            session.addStudent(student.getId());
-            SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
-            openSessionRoom(session);
-            populateNotifications();
-        }
-    }
-
-    private class ButtonEditor extends DefaultCellEditor {
-        private JButton button;
-
-        public ButtonEditor(JCheckBox checkBox) {
-            super(checkBox);
-            button = new JButton();
-            button.addActionListener(e -> {
-                int row = notificationsTable.getSelectedRow();
-                if (row >= 0) {
-                    String action = (String) notificationsTable.getValueAt(row, 3);
-                    if ("Join".equals(action)) {
-                        joinSession(row);
-                    } else {
-                        String sessionTitle = (String) notificationsTable.getValueAt(row, 0);
-                        Session session = sessions.stream()
-                                .filter(s -> s.getTitle().equals(sessionTitle))
-                                .findFirst().orElse(null);
-                        if (session != null)
-                            openSessionRoom(session);
-                    }
-                }
-            });
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row,
-                int column) {
-            button.setText((value == null) ? "" : value.toString());
-            return button;
-        }
-    }
-
+    // Utility methods to look up chapter, group, and teacher names.
     private String getChapterNameById(String chapterId) {
         for (Chapter c : chapters) {
-            if (c.getId().equals(chapterId))
+            if (c.getId().equals(chapterId)) {
                 return c.getName();
+            }
         }
         return "Unknown";
     }
 
     private String getGroupNameById(String groupId) {
         for (Group g : groups) {
-            if (g.getId().equals(groupId))
+            if (g.getId().equals(groupId)) {
                 return g.getGroupName();
+            }
         }
         return "Unknown";
     }
 
     private String getTeacherNameById(String teacherId) {
         for (Teacher t : teachers) {
-            if (t.getId().equals(teacherId))
+            if (t.getId().equals(teacherId)) {
                 return t.getName();
+            }
         }
         return "Unknown";
-    }
-
-    private void initNotificationRefreshTimer() {
-        notificationRefreshTimer = new Timer();
-        notificationRefreshTimer.schedule(new TimerTask() {
-            public void run() {
-                SwingUtilities.invokeLater(() -> populateNotifications());
-            }
-        }, 0, 10000);
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        if (notificationRefreshTimer != null) {
-            notificationRefreshTimer.cancel();
-        }
     }
 
     public static void main(String[] args) {

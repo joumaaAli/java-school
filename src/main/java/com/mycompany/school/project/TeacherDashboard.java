@@ -18,8 +18,9 @@ import model.user.UserStorage;
 import utils.IDGenerator;
 import utils.SerializationUtil;
 import utils.template.StandardExamProcessor;
+import utils.observer.SessionObserver;
 
-public class TeacherDashboard extends JFrame {
+public class TeacherDashboard extends JFrame implements SessionObserver {
     private Teacher teacher;
 
     // Data Lists
@@ -87,7 +88,7 @@ public class TeacherDashboard extends JFrame {
     private JTable sessionsTable;
     private DefaultTableModel sessionsTableModel;
     private JButton refreshSessionsButton;
-    private JButton sendMessageButton;
+    private JButton joinSessionButton; // NEW button for teacher to join session
     private JButton endSessionButton;
     private JButton removeStudentFromSessionButton;
     private JTextField sessionMessageField;
@@ -97,6 +98,11 @@ public class TeacherDashboard extends JFrame {
     private JPanel processExamPanel;
     private JComboBox<Test> processExamComboBox;
     private JButton processExamButton;
+
+    // New GUI Components for Notifications Panel
+    private JPanel notificationsPanel;
+    private DefaultListModel<String> notificationsListModel;
+    private JList<String> notificationsList;
 
     // List of chapters to which the teacher is assigned
     private List<Chapter> teacherChapters;
@@ -184,7 +190,8 @@ public class TeacherDashboard extends JFrame {
         initViewTestsTab();
         initViewTestResultsTab();
         initSessionsTab();
-        initProcessExamTab(); // new tab for exam processing
+        initProcessExamTab();
+        initNotificationsTab(); // NEW Notifications Tab
 
         tabbedPane.addTab("Manage Groups", manageGroupsPanel);
         tabbedPane.addTab("My Groups", myGroupsPanel);
@@ -211,6 +218,15 @@ public class TeacherDashboard extends JFrame {
         setSize(1600, 1000);
         setLocationRelativeTo(null);
         setVisible(true);
+    }
+
+    // NEW: Initialize the Notifications Tab
+    private void initNotificationsTab() {
+        notificationsPanel = new JPanel(new BorderLayout());
+        notificationsListModel = new DefaultListModel<>();
+        notificationsList = new JList<>(notificationsListModel);
+        JScrollPane scrollPane = new JScrollPane(notificationsList);
+        notificationsPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
     // -------------------- Manage Groups Tab --------------------
@@ -739,7 +755,6 @@ public class TeacherDashboard extends JFrame {
         sessions.add(session);
         SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
         JOptionPane.showMessageDialog(this, "Session added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        // Notify students in the group (if needed)
         sessionTitleField.setText("");
         sessionDateTimeField.setText("");
     }
@@ -846,14 +861,16 @@ public class TeacherDashboard extends JFrame {
         sessionsTable = new JTable(sessionsTableModel);
         JScrollPane tableScroll = new JScrollPane(sessionsTable);
         sessionsPanel.add(tableScroll, BorderLayout.CENTER);
-        JPanel topPanel = new JPanel(new BorderLayout());
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         refreshSessionsButton = new JButton("Refresh Sessions");
-        topPanel.add(refreshSessionsButton, BorderLayout.WEST);
+        joinSessionButton = new JButton("Join Session");
         endSessionButton = new JButton("End Session");
-        topPanel.add(endSessionButton, BorderLayout.EAST);
+        topPanel.add(refreshSessionsButton);
+        topPanel.add(joinSessionButton);
+        topPanel.add(endSessionButton);
         sessionsPanel.add(topPanel, BorderLayout.NORTH);
-        // (Chat and participants panel omitted for brevity)
         refreshSessionsButton.addActionListener(e -> populateSessionsTable());
+        joinSessionButton.addActionListener(e -> joinSelectedSession());
         endSessionButton.addActionListener(e -> endSelectedSession());
         sessionsTable.getSelectionModel().addListSelectionListener(e -> displaySessionDetails());
         new Timer().schedule(new TimerTask() {
@@ -902,7 +919,6 @@ public class TeacherDashboard extends JFrame {
         String sessionId = (String) sessionsTableModel.getValueAt(row, 0);
         Session session = sessions.stream().filter(s -> s.getId().equals(sessionId)).findFirst().orElse(null);
         if (session != null) {
-            // For simplicity, we print session messages to the console.
             System.out.println("Session Details for " + session.getTitle() + ":");
             session.getMessages().forEach(msg -> System.out.println(msg.getSenderName() + ": " + msg.getContent()));
         }
@@ -925,6 +941,32 @@ public class TeacherDashboard extends JFrame {
             JOptionPane.showMessageDialog(this, "Session ended successfully.", "Session Ended",
                     JOptionPane.INFORMATION_MESSAGE);
         }
+    }
+
+    private void joinSelectedSession() {
+        int selectedRow = sessionsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a session to join.", "No Session Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String sessionId = (String) sessionsTableModel.getValueAt(selectedRow, 0);
+        Session session = sessions.stream()
+                .filter(s -> s.getId().equals(sessionId))
+                .findFirst().orElse(null);
+        if (session == null) {
+            JOptionPane.showMessageDialog(this, "Selected session not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!session.getTeacherIds().contains(teacher.getId())) {
+            session.addTeacher(teacher.getId());
+            SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
+        }
+        // Open the session room. Note: the SessionRoom for teachers now attaches the
+        // parent (this dashboard)
+        // as its observer so notifications update the notifications panel.
+        SessionRoom room = new SessionRoom(this, session, teacher);
+        room.setVisible(true);
     }
 
     // -------------------- Process Exam Tab (New) --------------------
@@ -985,6 +1027,14 @@ public class TeacherDashboard extends JFrame {
             }
         }
         return "Unknown";
+    }
+
+    // -------------------- SessionObserver Implementation --------------------
+    @Override
+    public void update(Session session, String message) {
+        SwingUtilities.invokeLater(() -> {
+            notificationsListModel.addElement("[" + session.getTitle() + "] " + message);
+        });
     }
 
     public static void main(String[] args) {

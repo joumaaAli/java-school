@@ -1,14 +1,10 @@
 package model.subject;
 
-import model.user.Notification;
-import model.user.Student;
-import model.user.Teacher;
-import model.user.UserStorage;
-import utils.SerializationUtil;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
+import utils.observer.SessionObserver;
 
 public class Session implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -21,6 +17,8 @@ public class Session implements Serializable {
     private List<String> teacherIds;
     private List<String> studentIds; // Tracks students currently in the session
 
+    private transient List<SessionObserver> observers = new ArrayList<>();
+
     public Session(String id, String title, String dateTime, String chapterId, String groupId) {
         this.id = id;
         this.title = title;
@@ -30,6 +28,7 @@ public class Session implements Serializable {
         this.messages = new ArrayList<>();
         this.teacherIds = new ArrayList<>();
         this.studentIds = new ArrayList<>();
+        this.observers = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -78,25 +77,42 @@ public class Session implements Serializable {
     public void addStudent(String studentId) {
         if (!studentIds.contains(studentId)) {
             studentIds.add(studentId);
+            // Notify observers (the teacher) when a student joins.
+            notifyObservers("Student with ID " + studentId + " has joined the session: " + title);
         }
     }
 
     public void removeStudent(String studentId) {
         studentIds.remove(studentId);
+        notifyObservers("Student with ID " + studentId + " has left the session: " + title);
     }
 
     public void addMessage(Message message) {
-        this.messages.add(message);
+        messages.add(message);
     }
 
-    public void notifyStudents(List<Student> students) {
-        for (Student s : students) {
-            Notification notif = new Notification("New session: " + title, this.id);
-            System.out.println("Notifying student: " + s.getId());
-            System.out.println(notif);
-            s.addNotification(notif);
+    // Observer methods
+    public void attachObserver(SessionObserver observer) {
+        if (observers == null) {
+            observers = new ArrayList<>();
         }
-        SerializationUtil.saveDataToDisk(UserStorage.getUsers(), "users.txt");
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    public void detachObserver(SessionObserver observer) {
+        if (observers != null) {
+            observers.remove(observer);
+        }
+    }
+
+    public void notifyObservers(String message) {
+        if (observers != null) {
+            for (SessionObserver observer : observers) {
+                observer.update(this, message);
+            }
+        }
     }
 
     @Override

@@ -5,16 +5,16 @@ import model.user.Teacher;
 import model.user.User;
 import model.user.UserStorage;
 import utils.SerializationUtil;
+import utils.observer.SessionObserver;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class SessionRoom extends JDialog {
+public class SessionRoom extends JDialog implements SessionObserver {
     private Session session;
     private User currentUser;
 
@@ -31,6 +31,10 @@ public class SessionRoom extends JDialog {
         this.session = session;
         this.currentUser = user;
         initComponents();
+        // If the current user is a teacher, attach this SessionRoom as an observer
+        if (currentUser instanceof Teacher) {
+            session.attachObserver(this);
+        }
         startRefreshTimer();
     }
 
@@ -45,8 +49,7 @@ public class SessionRoom extends JDialog {
         JScrollPane chatScroll = new JScrollPane(chatArea);
         chatPanel.add(chatScroll, BorderLayout.CENTER);
 
-        // In a teacher session room the teacher can send messages.
-        // (For students, you might even remove the inputPanel altogether.)
+        // Input panel for sending messages
         JPanel inputPanel = new JPanel(new BorderLayout());
         messageField = new JTextField();
         sendButton = new JButton("Send");
@@ -96,18 +99,16 @@ public class SessionRoom extends JDialog {
                             }
                         }
                     }
-                    // --- NEW CODE: Check if a student has been removed ---
+                    // Check if a student has been removed (for student users)
                     if (currentUser instanceof Student) {
                         if (!session.getStudentIds().contains(currentUser.getId())) {
-                            // Notify the student and close the window.
                             JOptionPane.showMessageDialog(thisDialog(),
                                     "You have been removed from this session by the teacher.",
                                     "Session Ended", JOptionPane.INFORMATION_MESSAGE);
                             dispose();
-                            return; // Stop further updates.
+                            return;
                         }
                     }
-                    // ----------------------------------------------------------
                     loadMessages();
                     loadParticipants();
                 });
@@ -115,8 +116,6 @@ public class SessionRoom extends JDialog {
         }, 0, 5000);
     }
 
-    // Utility method to return a reference to the current dialog (for use in
-    // JOptionPane)
     private Component thisDialog() {
         return this;
     }
@@ -176,5 +175,14 @@ public class SessionRoom extends JDialog {
         super.dispose();
         if (refreshTimer != null)
             refreshTimer.cancel();
+    }
+
+    // SessionObserver method: show a pop-up notification on top of the session
+    // room.
+    @Override
+    public void update(Session session, String message) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this, message, "Notification", JOptionPane.INFORMATION_MESSAGE);
+        });
     }
 }

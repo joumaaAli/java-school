@@ -17,6 +17,9 @@ import model.user.User;
 import model.user.UserStorage;
 import utils.IDGenerator;
 import utils.SerializationUtil;
+import utils.memento.TestCaretaker;
+import utils.memento.TestMemento;
+import utils.memento.TestOriginator;
 import utils.template.StandardExamProcessor;
 import utils.observer.SessionObserver;
 
@@ -35,7 +38,8 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     // Test Results
     private List<TestResult> allTestResults;
 
-    // GUI Components for Manage Groups
+    // -------------------- GUI Components for Various Tabs --------------------
+    // Manage Groups Tab
     private JPanel manageGroupsPanel;
     private JTable groupsTable;
     private DefaultTableModel groupsTableModel;
@@ -44,13 +48,13 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     private JButton assignTeacherButton;
     private JButton removeTeacherButton;
 
-    // GUI Components for My Groups
+    // My Groups Tab
     private JPanel myGroupsPanel;
     private JTable myGroupsTable;
     private DefaultTableModel myGroupsTableModel;
     private JButton refreshMyGroupsButton;
 
-    // GUI Components for Create Material
+    // Create Material Tab
     private JPanel createMaterialPanel;
     private JTextField materialTitleField;
     private JComboBox<String> materialTypeComboBox;
@@ -58,48 +62,47 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     private JButton addMaterialButton;
     private JComboBox<Chapter> chapterComboBox;
 
-    // GUI Components for Create Test
+    // Create Test Tab
     private JPanel createTestPanel;
     private JButton addTestButton;
 
-    // GUI Components for Create Session
+    // Create Session Tab
     private JPanel createSessionPanel;
     private JTextField sessionTitleField;
     private JTextField sessionDateTimeField;
     private JComboBox<Group> sessionGroupComboBox;
     private JButton addSessionButton;
 
-    // GUI Components for View Tests
+    // View Tests Tab
     private JPanel viewTestsPanel;
     private JComboBox<Chapter> viewTestsChapterComboBox;
     private JTable viewTestsTable;
     private DefaultTableModel viewTestsTableModel;
     private JButton refreshViewTestsButton;
 
-    // GUI Components for View Test Results
+    // View Test Results Tab
     private JPanel viewTestResultsPanel;
     private JTable testResultsTable;
     private DefaultTableModel testResultsTableModel;
     private JComboBox<Test> testSelectionComboBox;
     private JButton viewTestResultsButton;
 
-    // GUI Components for Sessions
+    // Sessions Tab
     private JPanel sessionsPanel;
     private JTable sessionsTable;
     private DefaultTableModel sessionsTableModel;
     private JButton refreshSessionsButton;
-    private JButton joinSessionButton; // NEW button for teacher to join session
+    private JButton joinSessionButton;
     private JButton endSessionButton;
-    private JButton removeStudentFromSessionButton;
     private JTextField sessionMessageField;
     private JTextArea sessionChatArea;
 
-    // New GUI Components for Process Exam (Template Method Pattern)
+    // Process Exam Tab
     private JPanel processExamPanel;
     private JComboBox<Test> processExamComboBox;
     private JButton processExamButton;
 
-    // New GUI Components for Notifications Panel
+    // Notifications Tab
     private JPanel notificationsPanel;
     private DefaultListModel<String> notificationsListModel;
     private JList<String> notificationsList;
@@ -107,9 +110,27 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     // List of chapters to which the teacher is assigned
     private List<Chapter> teacherChapters;
 
+    // -------------------- NEW: Edit Test Tab (with Undo/Redo using Memento)
+    // --------------------
+    private JPanel editTestPanel;
+    private JComboBox<Test> editTestComboBox;
+    private JTextField editTestTitleField;
+    private JTextField editTestStartTimeField;
+    private JTextField editTestDurationField;
+    private JButton saveTestChangesButton;
+    private JButton undoButton;
+    private JButton redoButton;
+
+    // Memento fields for test editing
+    private TestOriginator testOriginator;
+    private TestCaretaker testCaretaker;
+
     public TeacherDashboard(Teacher teacher) {
         this.teacher = teacher;
         loadData();
+        // Initialize memento support for test editing.
+        testOriginator = new TestOriginator();
+        testCaretaker = new TestCaretaker();
         initComponents();
     }
 
@@ -182,6 +203,7 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         setLayout(new BorderLayout());
         JTabbedPane tabbedPane = new JTabbedPane();
 
+        // Initialize each tab
         initManageGroupsTab();
         initMyGroupsTab();
         initCreateMaterialTab();
@@ -191,7 +213,8 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         initViewTestResultsTab();
         initSessionsTab();
         initProcessExamTab();
-        initNotificationsTab(); // NEW Notifications Tab
+        initNotificationsTab();
+        initEditTestTab(); // NEW Edit Test tab with undo/redo support
 
         tabbedPane.addTab("Manage Groups", manageGroupsPanel);
         tabbedPane.addTab("My Groups", myGroupsPanel);
@@ -202,31 +225,14 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         tabbedPane.addTab("View Test Results", viewTestResultsPanel);
         tabbedPane.addTab("Sessions", sessionsPanel);
         tabbedPane.addTab("Process Exam", processExamPanel);
-
-        if (teacherChapters.isEmpty()) {
-            tabbedPane.setEnabledAt(tabbedPane.indexOfTab("Create Material"), false);
-            tabbedPane.setEnabledAt(tabbedPane.indexOfTab("Create Test"), false);
-            tabbedPane.setEnabledAt(tabbedPane.indexOfTab("Create Session"), false);
-            JOptionPane.showMessageDialog(this,
-                    "You are not assigned to any chapters. Material, Test, and Session creation are disabled.",
-                    "No Assigned Chapters",
-                    JOptionPane.INFORMATION_MESSAGE);
-        }
+        tabbedPane.addTab("Notifications", notificationsPanel);
+        tabbedPane.addTab("Edit Test", editTestPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1600, 1000);
         setLocationRelativeTo(null);
         setVisible(true);
-    }
-
-    // NEW: Initialize the Notifications Tab
-    private void initNotificationsTab() {
-        notificationsPanel = new JPanel(new BorderLayout());
-        notificationsListModel = new DefaultListModel<>();
-        notificationsList = new JList<>(notificationsListModel);
-        JScrollPane scrollPane = new JScrollPane(notificationsList);
-        notificationsPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
     // -------------------- Manage Groups Tab --------------------
@@ -776,7 +782,7 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         viewTestsTableModel.addColumn("Start Time");
         viewTestsTableModel.addColumn("Duration (mins)");
         viewTestsTableModel.addColumn("Number of Questions");
-        JTable viewTestsTable = new JTable(viewTestsTableModel);
+        viewTestsTable = new JTable(viewTestsTableModel);
         JScrollPane scrollPane = new JScrollPane(viewTestsTable);
         viewTestsPanel.add(scrollPane, BorderLayout.CENTER);
         populateViewTestsTable(viewTestsTableModel);
@@ -951,9 +957,7 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
             return;
         }
         String sessionId = (String) sessionsTableModel.getValueAt(selectedRow, 0);
-        Session session = sessions.stream()
-                .filter(s -> s.getId().equals(sessionId))
-                .findFirst().orElse(null);
+        Session session = sessions.stream().filter(s -> s.getId().equals(sessionId)).findFirst().orElse(null);
         if (session == null) {
             JOptionPane.showMessageDialog(this, "Selected session not found.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -962,14 +966,12 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
             session.addTeacher(teacher.getId());
             SerializationUtil.saveDataToDisk(sessions, "sessions.txt");
         }
-        // Open the session room. Note: the SessionRoom for teachers now attaches the
-        // parent (this dashboard)
-        // as its observer so notifications update the notifications panel.
+        // Open the session room (assumed to be implemented elsewhere)
         SessionRoom room = new SessionRoom(this, session, teacher);
         room.setVisible(true);
     }
 
-    // -------------------- Process Exam Tab (New) --------------------
+    // -------------------- Process Exam Tab --------------------
     private void initProcessExamTab() {
         processExamPanel = new JPanel(new BorderLayout());
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -998,6 +1000,159 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error processing exam: " + ex.getMessage(), "Processing Error",
                     JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // -------------------- Notifications Tab --------------------
+    private void initNotificationsTab() {
+        notificationsPanel = new JPanel(new BorderLayout());
+        notificationsListModel = new DefaultListModel<>();
+        notificationsList = new JList<>(notificationsListModel);
+        JScrollPane scrollPane = new JScrollPane(notificationsList);
+        notificationsPanel.add(scrollPane, BorderLayout.CENTER);
+    }
+
+    // -------------------- NEW: Edit Test Tab (with Undo/Redo using Memento)
+    // --------------------
+    private void initEditTestTab() {
+        editTestPanel = new JPanel(new BorderLayout());
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topPanel.add(new JLabel("Select Test to Edit:"));
+        editTestComboBox = new JComboBox<>(tests.toArray(new Test[0]));
+        topPanel.add(editTestComboBox);
+        JButton loadTestButton = new JButton("Load Test");
+        topPanel.add(loadTestButton);
+        editTestPanel.add(topPanel, BorderLayout.NORTH);
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JLabel titleLabel = new JLabel("Test Title:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(titleLabel, gbc);
+        editTestTitleField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        formPanel.add(editTestTitleField, gbc);
+        JLabel startTimeLabel = new JLabel("Start Time:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(startTimeLabel, gbc);
+        editTestStartTimeField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        formPanel.add(editTestStartTimeField, gbc);
+        JLabel durationLabel = new JLabel("Duration (mins):");
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(durationLabel, gbc);
+        editTestDurationField = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        formPanel.add(editTestDurationField, gbc);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        saveTestChangesButton = new JButton("Save Changes");
+        undoButton = new JButton("Undo");
+        redoButton = new JButton("Redo");
+        buttonPanel.add(saveTestChangesButton);
+        buttonPanel.add(undoButton);
+        buttonPanel.add(redoButton);
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        formPanel.add(buttonPanel, gbc);
+        editTestPanel.add(formPanel, BorderLayout.CENTER);
+
+        loadTestButton.addActionListener(e -> loadSelectedTestForEditing());
+        saveTestChangesButton.addActionListener(e -> saveTestEdits());
+        undoButton.addActionListener(e -> undoTestEdit());
+        redoButton.addActionListener(e -> redoTestEdit());
+    }
+
+    private void loadSelectedTestForEditing() {
+        Test selectedTest = (Test) editTestComboBox.getSelectedItem();
+        if (selectedTest == null) {
+            JOptionPane.showMessageDialog(this, "Please select a test to load.", "No Test Selected",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        editTestTitleField.setText(selectedTest.getTitle());
+        editTestStartTimeField.setText(selectedTest.getStartTime());
+        editTestDurationField.setText(String.valueOf(selectedTest.getDuration()));
+        // Create a deep copy and initialize memento history.
+        Test testCopy = selectedTest.copy();
+        testOriginator.setState(testCopy);
+        testCaretaker.clear();
+        testCaretaker.saveState(testOriginator.saveStateToMemento());
+        JOptionPane.showMessageDialog(this, "Test loaded for editing.", "Load Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void saveTestEdits() {
+        Test selectedTest = (Test) editTestComboBox.getSelectedItem();
+        if (selectedTest == null) {
+            JOptionPane.showMessageDialog(this, "No test loaded for editing.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // Clear the redo stack since new changes are made.
+        testCaretaker.clearRedo();
+        Test currentState = testOriginator.getState();
+        currentState.setTitle(editTestTitleField.getText().trim());
+        currentState.setStartTime(editTestStartTimeField.getText().trim());
+        try {
+            currentState.setDuration(Integer.parseInt(editTestDurationField.getText().trim()));
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid duration.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // Update the originator state and save the new state to the undo stack.
+        testOriginator.setState(currentState);
+        testCaretaker.saveState(testOriginator.saveStateToMemento());
+        // Update the global tests list.
+        for (int i = 0; i < tests.size(); i++) {
+            if (tests.get(i).getId().equals(currentState.getId())) {
+                tests.set(i, currentState.copy());
+                break;
+            }
+        }
+        SerializationUtil.saveDataToDisk(tests, "tests.txt");
+        JOptionPane.showMessageDialog(this, "Test changes saved.", "Success", JOptionPane.INFORMATION_MESSAGE);
+        updateEditTestComboBox();
+    }
+
+    private void undoTestEdit() {
+        if (!testCaretaker.canUndo()) {
+            JOptionPane.showMessageDialog(this, "No more undos available.", "Undo", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        TestMemento memento = testCaretaker.undo();
+        testOriginator.restoreState(memento);
+        updateEditFieldsFromOriginator();
+    }
+
+    private void redoTestEdit() {
+        if (!testCaretaker.canRedo()) {
+            JOptionPane.showMessageDialog(this, "No more redos available.", "Redo", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        TestMemento memento = testCaretaker.redo();
+        testOriginator.restoreState(memento);
+        updateEditFieldsFromOriginator();
+    }
+
+    private void updateEditFieldsFromOriginator() {
+        Test current = testOriginator.getState();
+        editTestTitleField.setText(current.getTitle());
+        editTestStartTimeField.setText(current.getStartTime());
+        editTestDurationField.setText(String.valueOf(current.getDuration()));
+    }
+
+    private void updateEditTestComboBox() {
+        editTestComboBox.removeAllItems();
+        for (Test t : tests) {
+            editTestComboBox.addItem(t);
         }
     }
 

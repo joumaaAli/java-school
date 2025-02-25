@@ -146,12 +146,10 @@ public class LoginForm extends javax.swing.JFrame {
 
     // Variables declaration - do not modify
     private javax.swing.JButton loginButton;
-    private javax.swing.JComboBox<String> roleComboBox; // Removed if not needed
     private javax.swing.JLabel nameLabel;
     private javax.swing.JTextField nameField;
     private javax.swing.JLabel passwordLabel;
     private javax.swing.JPasswordField passwordField;
-    private javax.swing.JLabel roleLabel; // Removed if not needed
     private javax.swing.JLabel titleLabel;
     // End of variables declaration
 }

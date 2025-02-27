@@ -49,6 +49,8 @@ public class StudentDashboard extends JFrame {
     private JTable testsTable;
     private DefaultTableModel testsTableModel;
     private JButton takeTestButton;
+    // NEW: Refresh Tests button
+    private JButton refreshTestsButton;
 
     private JPanel viewAllGroupsPanel;
     private JTable allGroupsTable;
@@ -144,7 +146,6 @@ public class StudentDashboard extends JFrame {
         tabbedPane.addTab("Sessions", sessionsPanel);
 
         add(tabbedPane, BorderLayout.CENTER);
-        // Removed initNotificationRefreshTimer() since notifications tab is removed.
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 800);
         setLocationRelativeTo(null);
@@ -205,33 +206,37 @@ public class StudentDashboard extends JFrame {
         testsTable = new JTable(testsTableModel);
         JScrollPane scrollPane = new JScrollPane(testsTable);
         testsPanel.add(scrollPane, BorderLayout.CENTER);
-        takeTestButton = new JButton("Take Selected Test");
-        takeTestButton.addActionListener(e -> takeSelectedTest());
+        // Create a button panel with both Take Test and Refresh Tests buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        takeTestButton = new JButton("Take Selected Test");
+        refreshTestsButton = new JButton("Refresh Tests");
+        buttonPanel.add(refreshTestsButton);
         buttonPanel.add(takeTestButton);
         testsPanel.add(buttonPanel, BorderLayout.SOUTH);
+        takeTestButton.addActionListener(e -> takeSelectedTest());
+        refreshTestsButton.addActionListener(e -> {
+            // Re-read tests from disk so new tests appear.
+            tests = SerializationUtil.readFromFile("tests.txt");
+            populateTestsTable();
+        });
     }
 
-    // This method populates only tests that the student has not taken.
+    // Modified: Show all tests not yet taken by the student (regardless of group
+    // enrollment)
     private void populateTestsTable() {
         testsTableModel.setRowCount(0);
-        ArrayList<Group> studentGroups = groups.stream()
-                .filter(g -> g.getStudentIds().contains(student.getId()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<String> chapterIds = studentGroups.stream()
-                .map(Group::getChapterId)
-                .distinct()
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<Test> relevantTests = tests.stream()
-                .filter(t -> chapterIds.contains(t.getChapterId()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        // Exclude tests that have already been taken
-        ArrayList<String> takenTestIds = testResults.stream()
-                .map(TestResult::getTestId)
-                .collect(Collectors.toCollection(ArrayList::new));
-        ArrayList<Test> availableTests = relevantTests.stream()
-                .filter(t -> !takenTestIds.contains(t.getId()))
-                .collect(Collectors.toCollection(ArrayList::new));
+        // Re-read tests from disk
+        tests = SerializationUtil.readFromFile("tests.txt");
+        if (tests == null) {
+            tests = new ArrayList<>();
+        }
+        ArrayList<Test> availableTests = new ArrayList<>();
+        for (Test t : tests) {
+            boolean alreadyTaken = testResults.stream().anyMatch(tr -> tr.getTestId().equals(t.getId()));
+            if (!alreadyTaken) {
+                availableTests.add(t);
+            }
+        }
         for (Test t : availableTests) {
             String chapterName = getChapterNameById(t.getChapterId());
             testsTableModel
@@ -712,6 +717,7 @@ public class StudentDashboard extends JFrame {
             test.addTestResult(tr);
             student.addTestResult(tr);
             saveTestResult(tr);
+            SerializationUtil.saveDataToDisk(tests, "tests.txt");
             JOptionPane.showMessageDialog(this,
                     "Test submitted successfully!\nYour Score: " + String.format("%.2f", score) + "%",
                     "Test Submitted", JOptionPane.INFORMATION_MESSAGE);

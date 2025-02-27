@@ -1,6 +1,8 @@
 package com.mycompany.school.project;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
@@ -73,13 +75,6 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     private JComboBox<Group> sessionGroupComboBox;
     private JButton addSessionButton;
 
-    // View Tests Tab
-    private JPanel viewTestsPanel;
-    private JComboBox<Chapter> viewTestsChapterComboBox;
-    private JTable viewTestsTable;
-    private DefaultTableModel viewTestsTableModel;
-    private JButton refreshViewTestsButton;
-
     // View Test Results Tab
     private JPanel viewTestResultsPanel;
     private JTable testResultsTable;
@@ -101,6 +96,9 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     private JPanel processExamPanel;
     private JComboBox<Test> processExamComboBox;
     private JButton processExamButton;
+    // NEW: Table to display processed exam results
+    private JTable processExamTable;
+    private DefaultTableModel processExamTableModel;
 
     // Notifications Tab
     private JPanel notificationsPanel;
@@ -111,7 +109,6 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     private List<Chapter> teacherChapters;
 
     // -------------------- NEW: Edit Test Tab (with Undo/Redo using Memento)
-    // --------------------
     private JPanel editTestPanel;
     private JComboBox<Test> editTestComboBox;
     private JTextField editTestTitleField;
@@ -203,13 +200,12 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         setLayout(new BorderLayout());
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        // Initialize each tab
+        // Initialize each tab (removed View Tests tab)
         initManageGroupsTab();
         initMyGroupsTab();
         initCreateMaterialTab();
         initCreateTestTab();
         initCreateSessionTab();
-        initViewTestsTab();
         initViewTestResultsTab();
         initSessionsTab();
         initProcessExamTab();
@@ -221,12 +217,24 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         tabbedPane.addTab("Create Material", createMaterialPanel);
         tabbedPane.addTab("Create Test", createTestPanel);
         tabbedPane.addTab("Create Session", createSessionPanel);
-        tabbedPane.addTab("View Tests", viewTestsPanel);
         tabbedPane.addTab("View Test Results", viewTestResultsPanel);
         tabbedPane.addTab("Sessions", sessionsPanel);
         tabbedPane.addTab("Process Exam", processExamPanel);
         tabbedPane.addTab("Notifications", notificationsPanel);
         tabbedPane.addTab("Edit Test", editTestPanel);
+
+        // Add a ChangeListener so that when "View Test Results" is selected, the tests
+        // dropdown is refreshed.
+        tabbedPane.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                JTabbedPane source = (JTabbedPane) e.getSource();
+                Component selected = source.getSelectedComponent();
+                if (selected == viewTestResultsPanel) {
+                    updateTestSelectionComboBox();
+                }
+            }
+        });
 
         add(tabbedPane, BorderLayout.CENTER);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -765,50 +773,6 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         sessionDateTimeField.setText("");
     }
 
-    // -------------------- View Tests Tab --------------------
-    private void initViewTestsTab() {
-        viewTestsPanel = new JPanel(new BorderLayout());
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JLabel selectChapterLabel = new JLabel("Select Chapter:");
-        viewTestsChapterComboBox = new JComboBox<>(teacherChapters.toArray(new Chapter[0]));
-        refreshViewTestsButton = new JButton("Refresh");
-        topPanel.add(selectChapterLabel);
-        topPanel.add(viewTestsChapterComboBox);
-        topPanel.add(refreshViewTestsButton);
-        viewTestsPanel.add(topPanel, BorderLayout.NORTH);
-        viewTestsTableModel = new DefaultTableModel();
-        viewTestsTableModel.addColumn("Test ID");
-        viewTestsTableModel.addColumn("Title");
-        viewTestsTableModel.addColumn("Start Time");
-        viewTestsTableModel.addColumn("Duration (mins)");
-        viewTestsTableModel.addColumn("Number of Questions");
-        viewTestsTable = new JTable(viewTestsTableModel);
-        JScrollPane scrollPane = new JScrollPane(viewTestsTable);
-        viewTestsPanel.add(scrollPane, BorderLayout.CENTER);
-        populateViewTestsTable(viewTestsTableModel);
-        refreshViewTestsButton.addActionListener(e -> populateViewTestsTable(viewTestsTableModel));
-        viewTestsChapterComboBox.addActionListener(e -> populateViewTestsTable(viewTestsTableModel));
-    }
-
-    private void populateViewTestsTable(DefaultTableModel model) {
-        model.setRowCount(0);
-        Chapter selectedChapter = (Chapter) viewTestsChapterComboBox.getSelectedItem();
-        if (selectedChapter == null || selectedChapter.getId().equals("N/A")) {
-            return;
-        }
-        List<Test> chapterTests = tests.stream()
-                .filter(t -> t.getChapterId().equals(selectedChapter.getId()))
-                .collect(Collectors.toList());
-        for (Test t : chapterTests) {
-            int numQuestions = t.getQuestions().size();
-            model.addRow(new Object[] { t.getId(), t.getTitle(), t.getStartTime(), t.getDuration(), numQuestions });
-        }
-        if (chapterTests.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No tests found for the selected chapter.", "No Tests",
-                    JOptionPane.INFORMATION_MESSAGE);
-        }
-    }
-
     // -------------------- View Test Results Tab --------------------
     private void initViewTestResultsTab() {
         viewTestResultsPanel = new JPanel(new BorderLayout());
@@ -856,6 +820,15 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         if (selectedTestResults.isEmpty()) {
             JOptionPane.showMessageDialog(this, "No results found for the selected test.", "No Results",
                     JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    // This method refreshes the tests in the dropdown.
+    private void updateTestSelectionComboBox() {
+        tests = SerializationUtil.readFromFile("tests.txt"); // re-read tests
+        testSelectionComboBox.removeAllItems();
+        for (Test t : tests) {
+            testSelectionComboBox.addItem(t);
         }
     }
 
@@ -982,6 +955,17 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
         topPanel.add(processExamComboBox);
         topPanel.add(processExamButton);
         processExamPanel.add(topPanel, BorderLayout.NORTH);
+
+        // NEW: Create a table to display the exam results after processing
+        processExamTableModel = new DefaultTableModel();
+        processExamTableModel.addColumn("Student ID");
+        processExamTableModel.addColumn("Student Name");
+        processExamTableModel.addColumn("Score");
+        processExamTableModel.addColumn("Submission Time");
+        processExamTable = new JTable(processExamTableModel);
+        JScrollPane processExamScrollPane = new JScrollPane(processExamTable);
+        processExamPanel.add(processExamScrollPane, BorderLayout.CENTER);
+
         processExamButton.addActionListener(e -> processSelectedExam());
     }
 
@@ -997,6 +981,25 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
             processor.processExam(selectedTest);
             JOptionPane.showMessageDialog(this, "Exam '" + selectedTest.getTitle() + "' processed successfully.",
                     "Exam Processed", JOptionPane.INFORMATION_MESSAGE);
+            // After processing, update the table with each student's result
+            processExamTableModel.setRowCount(0);
+            List<TestResult> results = selectedTest.getTestResults();
+            for (TestResult tr : results) {
+                Student stu = students.stream()
+                        .filter(s -> s.getId().equals(tr.getStudentId()))
+                        .findFirst().orElse(null);
+                String studentName = (stu != null) ? stu.getName() : "Unknown";
+                processExamTableModel.addRow(new Object[] {
+                        tr.getStudentId(),
+                        studentName,
+                        String.format("%.2f", tr.getScore()),
+                        tr.getSubmissionTime()
+                });
+            }
+            if (results.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No submissions found for the exam.", "No Results",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error processing exam: " + ex.getMessage(), "Processing Error",
                     JOptionPane.ERROR_MESSAGE);
@@ -1013,7 +1016,6 @@ public class TeacherDashboard extends JFrame implements SessionObserver {
     }
 
     // -------------------- NEW: Edit Test Tab (with Undo/Redo using Memento)
-    // --------------------
     private void initEditTestTab() {
         editTestPanel = new JPanel(new BorderLayout());
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
